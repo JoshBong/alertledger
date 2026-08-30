@@ -261,14 +261,22 @@ class TidyTests(unittest.TestCase):
         self.row("bankofamerica_1933", "2026-05-30", 50.00, "Zelle from A FRIEND")                          # income, not paired
         self.row("chase_0946", "2026-05-30", -50.00, "SOME STORE")                                          # same amount but not transfer-looking
         r = self.ledger.tidy(self.con)
-        self.assertEqual(r, {"named_transfers": 1, "paired_transfers": 1})
+        self.assertEqual(r, {"named_transfers": 1, "paired_transfers": 1, "shadowed_pending": 0})
         types = {row["description"]: row["type"] for row in self.con.execute("SELECT description, type FROM transactions")}
         self.assertEqual(types["Online Scheduled Payment to ACCT# 4139"], "transfer")
         self.assertEqual(types["JPMorgan Chase DES:Ext Trnsfr"], "transfer")
         self.assertEqual(types["Online Transfer From Adv Safebalance Banking"], "transfer")
         self.assertEqual(types["SQ *RAMEN ISHIDA"], "card_payment")
         self.assertEqual(types["SOME STORE"], "card_payment")
-        self.assertEqual(self.ledger.tidy(self.con), {"named_transfers": 0, "paired_transfers": 0})     # idempotent
+        self.assertEqual(self.ledger.tidy(self.con), {"named_transfers": 0, "paired_transfers": 0, "shadowed_pending": 0})     # idempotent
+
+    def test_alert_after_posted_row_is_not_added(self):
+        from parsers import Parsed
+        self.row("bankofamerica_1933", "2026-07-17", -75.00, "Zelle to CONNECTICUT TAEKWONDO ACADEMY LLC")            # posted, from a PDF
+        self.ledger.record(self.con, "Bank of America", Parsed("zelle_out", 75.0, "Zelle to CONNECTICUT TAEKWONDO ACADEMY LLC", "1933", date(2026, 7, 17)), "subj")
+        self.assertEqual(self.con.execute("SELECT COUNT(*) FROM transactions WHERE amount=-75").fetchone()[0], 1)
+        self.row("bankofamerica_1933", "2026-07-18", -75.00, "Zelle to X", status="pending")                          # legacy shadowed pending
+        self.assertEqual(self.ledger.tidy(self.con)["shadowed_pending"], 1)
 
 
 class VenmoTests(unittest.TestCase):

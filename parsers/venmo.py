@@ -14,7 +14,7 @@ class Venmo(BankParser):
         (r"^(.+?) paid (?:you )?\$|^You received \$", "received"),
         (r"transfer has been initiated|transfer .* complete|added money|Instant transfer", "skip"),   # moving your own money
         (r"requests? \$|Reminder:|wants to be friends|transaction history|verify|welcome|security|password|sign-in|"
-         r"payment method|profile|account|statement|changes to|commented on|declined|cancel", "skip"),
+         r"payment method|profile|account|statement|changes to|commented on|declined|cancel|is now your friend", "skip"),
     ]
 
     def paid(self, e: Email):

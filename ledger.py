@@ -85,6 +85,9 @@ def record(con, bank: str, p: Parsed, subject: str) -> str:
         return "statement"
     d = p.date.isoformat()
     amt = p.signed_amount
+    if con.execute("""SELECT 1 FROM transactions WHERE account_id=? AND status='posted' AND ABS(amount-?)<0.005
+                      AND ABS(julianday(date)-julianday(?))<=3 LIMIT 1""", (aid, amt, d)).fetchone():
+        return "txn"                                   # the bank's posted row is already here (CSV/PDF); the alert adds nothing
     key = f"{bank}|{p.last4}|{d}|{amt:.2f}|{p.merchant.lower()}"
     tid = "mail_" + hashlib.sha1(key.encode()).hexdigest()[:20]
     today = date.today().isoformat()
@@ -132,6 +135,16 @@ def record_statement(con, account_id_: str, p: Parsed):
 TRANSFERISH = ("transfer", "trnsfr", "payment", "autopay", "deposit", "withdrawal", "cashout", "ext trnsfr")
 
 
+def drop_shadowed_pending(con) -> int:
+    """Pending alert rows that have a posted twin (same account, amount, ±3 days) — left over from imports that predate the guard."""
+    rows = con.execute("""SELECT p.id FROM transactions p WHERE p.status='pending' AND EXISTS (
+                            SELECT 1 FROM transactions q WHERE q.status='posted' AND q.account_id=p.account_id
+                            AND ABS(q.amount-p.amount)<0.005 AND ABS(julianday(q.date)-julianday(p.date))<=3)""").fetchall()
+    con.executemany("DELETE FROM transactions WHERE id=?", [(r["id"],) for r in rows])
+    con.commit()
+    return len(rows)
+
+
 def tidy(con) -> dict:
     """The two dedupe rules that matter, run after every sync/import. Idempotent.
     1. A row that names another account we track (its last-4) and looks like a transfer/payment → type=transfer.
@@ -157,4 +170,4 @@ def tidy(con) -> dict:
         if any(k in text for k in TRANSFERISH):
             con.executemany("UPDATE transactions SET type='transfer' WHERE id=?", [(a["id"],), (b["id"],)]); n2 += 1
     con.commit()
-    return {"named_transfers": n1, "paired_transfers": n2}
+    return {"named_transfers": n1, "paired_transfers": n2, "shadowed_pending": drop_shadowed_pending(con)}
