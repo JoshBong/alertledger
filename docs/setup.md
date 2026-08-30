@@ -34,8 +34,17 @@ Don't expose the port to the internet. Install [Tailscale](https://tailscale.com
 ## Categories
 `rules.toml` (copied from `rules.example.toml` on setup) maps merchant regexes → categories; `ignore = true` drops own-account payments from spend. Alerts carry no category from the bank, so this file is the categorizer.
 
-## Updating
-`git pull && ./install.sh` — the wizard is skipped when config exists; the service is re-registered and restarted.
+## Day-to-day commands
+```
+./alertledger status                      service state, last sync, ledger totals, URL
+./alertledger doctor                      python · config · Gmail login · database · service · port
+./alertledger config                      show config (password masked)
+./alertledger config set port 8090        also: sync_interval_min 30 · default_checking.Chase 1234   (restarts the service)
+./alertledger config gmail                re-enter the Gmail login (tested before saving)
+./alertledger update                      git pull → run tests → restart the service
+./alertledger sync [--full]               pull now from the terminal
+```
+`./install.sh` is only for first install; `update` is the everyday one.
 
 ## Uninstall
 `python3 alertledger.py uninstall` (sudo on Linux), delete `~/.alertledger`, revoke the app password.
