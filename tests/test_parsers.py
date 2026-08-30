@@ -238,3 +238,34 @@ Service fees
     def test_card_estatement_not_yet(self):
         with self.assertRaises(ValueError):
             list(parsers.for_sender(BOFA).pdf_rows("Bank of America\nfor July 1, 2026 to July 27, 2026\nPurchases and Adjustments", "eStmt.pdf"))
+
+
+class TidyTests(unittest.TestCase):
+    def setUp(self):
+        import ledger, os
+        os.environ["ALERTLEDGER_HOME"] = "/tmp/al-test"
+        self.ledger = ledger
+        self.con = ledger.connect(":memory:")
+        for bank, l4 in (("Chase", "0946"), ("Bank of America", "1933"), ("Bank of America", "4139")):
+            ledger.ensure_account(self.con, bank, l4)
+
+    def row(self, acct, d, amt, desc, status="posted"):
+        self.con.execute("INSERT INTO transactions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                         (f"t{abs(hash((acct, d, amt, desc)))}", acct, d, desc, amt, status, "card_payment" if amt < 0 else "transfer" if "Zelle from" in desc else "deposit", None, desc, "{}", d, d))
+
+    def test_named_card_payment_and_paired_transfer(self):
+        self.row("bankofamerica_1933", "2026-05-22", -2618.37, "Online Scheduled Payment to ACCT# 4139")   # names a tracked account
+        self.row("bankofamerica_1933", "2026-05-27", -2500.00, "JPMorgan Chase DES:Ext Trnsfr")            # no last4, but…
+        self.row("chase_0946", "2026-05-29", 2500.00, "Online Transfer From Adv Safebalance Banking")       # …pairs with this
+        self.row("chase_0946", "2026-05-29", -45.73, "SQ *RAMEN ISHIDA")                                    # untouched
+        self.row("bankofamerica_1933", "2026-05-30", 50.00, "Zelle from A FRIEND")                          # income, not paired
+        self.row("chase_0946", "2026-05-30", -50.00, "SOME STORE")                                          # same amount but not transfer-looking
+        r = self.ledger.tidy(self.con)
+        self.assertEqual(r, {"named_transfers": 1, "paired_transfers": 1})
+        types = {row["description"]: row["type"] for row in self.con.execute("SELECT description, type FROM transactions")}
+        self.assertEqual(types["Online Scheduled Payment to ACCT# 4139"], "transfer")
+        self.assertEqual(types["JPMorgan Chase DES:Ext Trnsfr"], "transfer")
+        self.assertEqual(types["Online Transfer From Adv Safebalance Banking"], "transfer")
+        self.assertEqual(types["SQ *RAMEN ISHIDA"], "card_payment")
+        self.assertEqual(types["SOME STORE"], "card_payment")
+        self.assertEqual(self.ledger.tidy(self.con), {"named_transfers": 0, "paired_transfers": 0})     # idempotent

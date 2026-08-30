@@ -60,6 +60,7 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
                 counts["skip"] += 1
             else:
                 counts[ledger.record(con, bank.name, p, e.subject)] += 1
+    ledger.tidy(con)
     ledger.set_meta(con, "last_sync", datetime.now().isoformat(timespec="seconds"))
     ledger.set_meta(con, "last_counts", json.dumps(counts))
     con.commit()
@@ -143,6 +144,7 @@ def import_file(con, filename: str, data: bytes, account_id_: str | None = None)
         else:
             counts[ledger.record_posted(con, bank.name, acct, p)] += 1
     con.commit()
+    counts["transfers"] = sum(ledger.tidy(con).values())
     ledger.remember_file(con, sha, filename, acct, counts["new"])
     return counts
 

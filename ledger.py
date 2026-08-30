@@ -123,3 +123,32 @@ def remember_file(con, sha: str, filename: str, account_id_: str, rows: int):
 
 def record_statement(con, account_id_: str, p: Parsed):
     upsert_statement(con, account_id_, p.date.isoformat(), p.balance, p.due.isoformat() if p.due else None, authoritative=True)
+
+
+TRANSFERISH = ("transfer", "trnsfr", "payment", "autopay", "deposit", "withdrawal", "cashout", "ext trnsfr")
+
+
+def tidy(con) -> dict:
+    """The two dedupe rules that matter, run after every sync/import. Idempotent.
+    1. A row that names another account we track (its last-4) and looks like a transfer/payment → type=transfer.
+    2. Money in on one account + the same amount out on a different account within 3 days, either side transfer-looking
+       → both type=transfer.  Transfers are excluded from spend and income."""
+    last4s = [r["last_four"] for r in con.execute("SELECT last_four FROM accounts WHERE last_four IS NOT NULL")]
+    n1 = n2 = 0
+    for r in con.execute("SELECT id, description FROM transactions WHERE type!='transfer'").fetchall():
+        d = (r["description"] or "").lower()
+        if any(k in d for k in TRANSFERISH) and any(l in d for l in last4s):
+            con.execute("UPDATE transactions SET type='transfer' WHERE id=?", (r["id"],)); n1 += 1
+    ins = con.execute("""SELECT id, account_id, date, amount, description FROM transactions
+                         WHERE amount>0 AND type!='transfer' AND status='posted'""").fetchall()
+    for a in ins:
+        b = con.execute("""SELECT id, description FROM transactions WHERE account_id!=? AND ABS(amount+?)<0.005 AND type!='transfer'
+                           AND ABS(julianday(date)-julianday(?))<=3 ORDER BY ABS(julianday(date)-julianday(?)) LIMIT 1""",
+                        (a["account_id"], a["amount"], a["date"], a["date"])).fetchone()
+        if not b:
+            continue
+        text = ((a["description"] or "") + " " + (b["description"] or "")).lower()
+        if any(k in text for k in TRANSFERISH):
+            con.executemany("UPDATE transactions SET type='transfer' WHERE id=?", [(a["id"],), (b["id"],)]); n2 += 1
+    con.commit()
+    return {"named_transfers": n1, "paired_transfers": n2}
