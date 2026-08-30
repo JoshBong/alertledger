@@ -11,10 +11,10 @@ class Venmo(BankParser):
     rules = [
         (r"^You paid (.+?) \$", "paid"),
         (r"^You completed .+ charge request", "paid"),
-        (r"^(.+?) paid (?:you )?\$|^You received \$", "received"),
+        (r"^(.+?) paid (?:your? )?\$|^You received \$", "received"),      # "paid you $", "paid your $X request", "paid $X to your Venmo account"
         (r"transfer has been initiated|transfer .* complete|added money|Instant transfer", "skip"),   # moving your own money
         (r"requests? \$|Reminder:|wants to be friends|transaction history|verify|welcome|security|password|sign-in|"
-         r"payment method|profile|account|statement|changes to|commented on|declined|cancel|is now your friend", "skip"),
+         r"payment method|profile|account|statement|changes to|commented on|declined|cancel|is now your friend|coming soon|paypal", "skip"),
     ]
 
     def paid(self, e: Email):
@@ -26,7 +26,7 @@ class Venmo(BankParser):
         return Parsed("zelle_out", amt, "Venmo to " + who, None, self.date(e.body, e.received, "Date"), posted=True, extra={"note": self._note(e.body, who)})   # Venmo emails are final
 
     def received(self, e: Email):
-        m = re.match(r"(.+?) paid (?:you )?\$", e.subject) or re.match(r"You received \$[\d.,]+ from (.+)$", e.subject)
+        m = re.match(r"(.+?) paid (?:your? )?\$", e.subject) or re.match(r"You received \$[\d.,]+ from (.+)$", e.subject)
         who = (m.group(1) if m else "?").strip()
         amt = self.amount(e.subject) or self._spaced_amount(e.body)
         return Parsed("zelle_in", amt, "Venmo from " + who, None, self.date(e.body, e.received, "Date"), posted=True) if amt else None
