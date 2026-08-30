@@ -183,7 +183,7 @@ INTEREST CHARGES
         self.assertIn(("purchase", 99.0, "TST*SEOUL SALON ", date(2026, 7, 22)), kinds)
         self.assertNotIn("WON", [p.merchant for p in rows])                        # FX continuation lines skipped
         self.assertFalse(any("PAYMENT" in p.merchant for p in rows))                # autopay is not spend
-        self.assertIn(("purchase", 95.0, "Fee: Annual Membe", date(2026, 5, 1)), kinds)   # fees are spend
+        self.assertIn(("purchase", 95.0, "Fee: Annual Memb", date(2026, 5, 1)), kinds)   # fees are spend
         st = [p for p in rows if p.kind == "statement"][0]
         self.assertEqual((st.balance, st.date), (663.16, date(2026, 8, 21)))
         self.assertEqual([p for p in rows if p.merchant.startswith("SKEJOOL")][0].date.year, 2026)   # out-of-window date still gets a sane year
