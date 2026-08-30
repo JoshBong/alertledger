@@ -29,16 +29,23 @@ LAST4 = [re.compile(r"\(\s*\.{3}\s*(\d{4})\s*\)"),                    # Chase "(
          re.compile(r"(?:Signature|Card|Banking|Savings|Checking)\s*-\s*(\d{4})\b", re.I)]   # BofA "Visa Signature - 1234"
 DATES = [(re.compile(r"\b([A-Z][a-z]{2,8} \d{1,2}, \d{4})"), ("%b %d, %Y", "%B %d, %Y")),
          (re.compile(r"\b(\d{2}/\d{2}/\d{4})"), ("%m/%d/%Y",))]
-VALUE_END = r"(?=\s+(?:Amount|When|Date|Card|Account|Sent|To|Merchant|Where|Transaction|Memo|View|If|Confirmation)\b|\s*\$|$)"
+VALUE_END = (r"(?=\s+(?:Amount|When|Date|Card|Account|Sent|To|Merchant|Where|Location|Transaction|Memo|View|If|Confirmation|"
+             r"This may have|Your message|Message)\b|\s*\$|$)")
 MERCHANT = [re.compile(r"transaction with (.+?)" + VALUE_END, re.I),                  # Chase card subject/body
             re.compile(r"\b(?:Merchant|Where|Description|Payee)\s*:?\s+(.+?)" + VALUE_END, re.I),
             re.compile(r"payment of " + AMT + r" to (.+?) has been sent", re.I),        # BofA Zelle sent (group 2)
+            re.compile(r"^You sent " + AMT + r" to (.+?)$", re.I),                        # older BofA Zelle subject (group 2)
             re.compile(r"\bTo\s*:?\s+([A-Z][A-Z0-9 &'.\-]{2,60}?)" + VALUE_END)]         # Chase Zelle sent "To NAME"
 IGNORE = re.compile(r"payment (?:is scheduled|has been applied|received)|received your .* payment|automatic payment|"
-                    r"new letter|credit summary|welcome to zelle|zelle recipient|deleted from zelle|password|sign.?in|"
-                    r"security|data access|sharing data|statement is now available|your statement is available", re.I)
+                    r"new letter|credit summary|welcome|zelle recipient|deleted from zelle|password|sign.?in|"
+                    r"security|data access|sharing data|consent to share|statement is now available|your statement is available|"
+                    r"apple pay|touch id|face id|fico|reviewing your transfer|approved your transfer|transfer to|"
+                    r"insufficient funds|balance is low|external bank account|could not complete|authorization code|"
+                    r"email address|receiving money|mobile notifications|virtual card|card is on the way|card is ready|"
+                    r"alert settings|alerts? (?:has|have) been|enrolled|paperless|profile|update", re.I)
+DEPOSIT = re.compile(r"mobile check deposit|deposit (?:posted|received)", re.I)
 STATEMENT = re.compile(r"credit card statement is available", re.I)
-ZELLE_SENT = re.compile(r"zelle.*(?:has been sent|you sent)|you sent money", re.I)
+ZELLE_SENT = re.compile(r"zelle.*has been sent|^you sent (?:money|\$)", re.I)
 ZELLE_RECV = re.compile(r"received money|sent you money", re.I)
 REFUND = re.compile(r"refund|credit (?:received|posted|to your)|was credited|return", re.I)
 
@@ -112,6 +119,12 @@ def parse(subject: str, sender: str, body: str, received: date) -> dict | None:
         return {"kind": "statement", "bank": bank, "last4": find_last4(body, subject),
                 "statement_date": (find_date(sd.group(1), received) if sd else received).isoformat(),
                 "balance": bal, "due_date": find_date(due.group(1), received).isoformat() if due else None}
+    if DEPOSIT.search(subject):
+        amt = labeled_amount(body, "Check amount") or labeled_amount(body, "Amount")
+        if amt is None:
+            return None
+        return {"kind": "txn", "bank": bank, "last4": find_last4(body) or DEFAULT_CHECKING_FOR(bank), "date": find_date(body, received).isoformat(),
+                "amount": amt, "merchant": "Check deposit", "type": "transfer", "subject": subject}
     if IGNORE.search(subject):
         return {"kind": "skip"}
     m = re.search(AMT, subject) or re.search(r"Amount\s*:?\s*" + AMT, body) or re.search(AMT, body)
@@ -132,6 +145,10 @@ def parse(subject: str, sender: str, body: str, received: date) -> dict | None:
     sign = 1 if REFUND.search(subject) else -1
     return {"kind": "txn", "bank": bank, "last4": last4, "date": find_date(body, received).isoformat(),
             "amount": sign * amount, "merchant": merchant, "type": "card_payment", "subject": subject}
+
+
+def DEFAULT_CHECKING_FOR(bank):
+    return _DEFAULT_CHECKING.get(bank)
 
 
 def account_id(bank: str, last4: str | None) -> str:
