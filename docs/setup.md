@@ -36,6 +36,7 @@ Don't expose the port to the internet. Install [Tailscale](https://tailscale.com
 
 ## Day-to-day commands
 ```
+./alertledger stop / start                pause or resume the service (keeps it installed)
 ./alertledger status                      service state, last sync, ledger totals, URL
 ./alertledger doctor                      python · config · Gmail login · database · service · port
 ./alertledger config                      show config (password masked)

@@ -6,6 +6,7 @@
   python3 alertledger.py serve       run forever: sync every N minutes + dashboard on :PORT
   python3 alertledger.py install     register `serve` as a system service (systemd / launchd) and start it
   python3 alertledger.py uninstall
+  python3 alertledger.py stop | start  pause / resume the installed service (registration stays)
   python3 alertledger.py status      service state, last sync, ledger totals, URL
   python3 alertledger.py doctor      check python, config, Gmail login, database, service, port
   python3 alertledger.py config      show config (password masked)
@@ -167,6 +168,25 @@ def _restart_service():
     return r.returncode == 0
 
 
+def stop():
+    if sys.platform == "darwin":
+        r = subprocess.run(["launchctl", "unload", str(Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist")], capture_output=True, text=True)
+    else:
+        r = subprocess.run(["systemctl", "disable", "--now", SERVICE], capture_output=True, text=True)
+    print("stopped (won't start at boot until ./alertledger start)" if r.returncode == 0 else f"nothing to stop: {r.stderr.strip() or 'not installed'}")
+
+
+def start():
+    if sys.platform == "darwin":
+        plist = Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist"
+        if not plist.exists():
+            raise SystemExit("not installed — run ./alertledger install")
+        r = subprocess.run(["launchctl", "load", str(plist)], capture_output=True, text=True)
+    else:
+        r = subprocess.run(["systemctl", "enable", "--now", SERVICE], capture_output=True, text=True)
+    print("started" if r.returncode == 0 else f"failed: {r.stderr.strip()}")
+
+
 def _port_open(port: int) -> bool:
     import socket
     with socket.socket() as s:
@@ -299,7 +319,7 @@ def uninstall():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "status", "doctor", "config", "update"])
+    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update"])
     ap.add_argument("--full", action="store_true")
     ap.add_argument("rest", nargs="*")
     a = ap.parse_args()
@@ -314,6 +334,10 @@ if __name__ == "__main__":
         install()
     elif a.cmd == "uninstall":
         uninstall()
+    elif a.cmd == "start":
+        start()
+    elif a.cmd == "stop":
+        stop()
     elif a.cmd == "status":
         status()
     elif a.cmd == "doctor":
