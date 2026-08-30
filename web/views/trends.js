@@ -12,7 +12,7 @@ export function TrendsView({ rerender }) {
   const months = store.months.slice(0, 12).reverse();
   const key = mode === 'cat' ? (t => t.cat) : mode === 'acct' ? (t => t.card) : (() => 'total');
   const colorFor = k => mode === 'total' ? 'var(--s1)' : store.colorFor(mode, k);
-  const columns = months.map(m => ({ label: shortMonth(m), title: monthLabel(m), values: sumBy(store.inMonth(m), key) }));
+  const columns = months.map(m => ({ label: shortMonth(m), title: monthLabel(m), values: sumBy(store.inMonth(m), key), current: m === store.months[0] }));
   const keys = [...new Set(columns.flatMap(c => Object.keys(c.values)))]
     .sort((a, b) => mode === 'cat' ? store.categories.indexOf(a) - store.categories.indexOf(b) : a.localeCompare(b));
 

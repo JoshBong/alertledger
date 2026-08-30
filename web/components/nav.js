@@ -9,7 +9,7 @@ const TABS = [
 
 export function Nav(root, active, onSelect) {
   clear(root).append(
-    el('span', { class: 'brand' }, 'alertledger'),
+    el('a', { class: 'brand', href: '#spending', onclick: e => { e.preventDefault(); onSelect('spending'); } }, 'alertledger'),
     ...TABS.map(t => el('a', { href: '#' + t.id, class: t.id === active ? 'on' : '', 'data-tab': t.id,
       onclick: e => { e.preventDefault(); onSelect(t.id); } }, el('span', { class: 'glyph' }, t.glyph), t.label)),
   );

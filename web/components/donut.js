@@ -7,8 +7,14 @@ export function Donut({ items, total, title, subtitle, onSelect }) {
   const R = 80, r = 58, C = 100, GAP = items.length > 1 ? 0.02 : 0;
   const chart = svg('svg', { viewBox: '0 0 200 200', role: 'img', 'aria-label': title });
   if (!total) chart.append(svg('circle', { cx: C, cy: C, r: (R + r) / 2, fill: 'none', stroke: 'var(--line)', 'stroke-width': R - r }));
+  if (items.length === 1) {                                                  // a 360° arc is degenerate in SVG: draw a ring
+    const it = items[0];
+    const ring = svg('circle', { cx: C, cy: C, r: (R + r) / 2, fill: 'none', stroke: it.color, 'stroke-width': R - r, onclick: () => onSelect?.(it.key) });
+    attach(ring, () => `<b>${it.key}</b><br>${money(it.value)} · 100%`);
+    chart.append(ring);
+  }
   let a0 = -Math.PI / 2;
-  for (const it of items) {
+  for (const it of items.length === 1 ? [] : items) {
     const a1 = a0 + 2 * Math.PI * it.value / total;
     const s = a0 + GAP / 2, e = a1 - GAP / 2;
     a0 = a1;

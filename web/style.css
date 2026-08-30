@@ -39,7 +39,7 @@ section.panel > h3 .muted { text-transform: none; letter-spacing: 0; font-weight
 
 /* ---- nav (bottom tabs on phone, top bar on desktop) --------------------- */
 #nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); z-index: 5; padding-bottom: env(safe-area-inset-bottom); }
-#nav .brand { display: none; }
+#nav .brand { display: none; color: var(--ink); text-decoration: none; }
 #nav a { flex: 1; text-align: center; padding: 10px 4px 8px; font-size: 12px; color: var(--ink-3); text-decoration: none; }
 #nav a.on { color: var(--ink); font-weight: 600; }
 #nav a .glyph { display: block; font-size: 18px; }
@@ -69,9 +69,13 @@ section.panel > h3 .muted { text-transform: none; letter-spacing: 0; font-weight
 .donut .center .sub { color: var(--ink-2); font-size: 13px; }
 
 /* ---- category cards ----------------------------------------------------- */
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--gray)); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; }
-.card:hover { border-color: var(--ink-3); border-left-color: var(--c, var(--gray)); }
+.cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.card { flex: 0 1 200px; min-width: 150px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--gray)); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; }
+.card:hover, .card.on { border-color: var(--ink-3); border-left-color: var(--c, var(--gray)); }
+.card.on { box-shadow: 0 0 0 2px var(--c, var(--gray)) inset; }
+.detail { margin-top: 12px; border-left: 4px solid var(--c, var(--gray)); }
+.detail h3 { font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.detail .list { max-height: min(420px, 55vh); overflow: auto; }
 .card .name { font-weight: 600; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
 .card .value { font-size: 20px; font-weight: 700; }
 .card .sub { font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; margin-top: 2px; }
@@ -91,12 +95,20 @@ section.panel > h3 .muted { text-transform: none; letter-spacing: 0; font-weight
 .tx .amount.in { color: var(--good); }
 
 /* ---- charts / tables ---------------------------------------------------- */
-.bars svg { width: 100%; height: auto; display: block; overflow: visible; }
+.bars-svg { width: 100%; }
+.bars svg { display: block; overflow: visible; }
 .bars text { fill: var(--ink-2); font-size: 11px; }
+.bars text.cur { fill: var(--ink); font-weight: 600; }
 .bars .grid line { stroke: var(--line); }
+.bars .avg { stroke: var(--ink-3); stroke-dasharray: 3 3; }
+.bars .avg-label { fill: var(--ink-3); font-size: 10px; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--ink-3); }
 .legend span { display: inline-flex; gap: 5px; align-items: center; }
-.tbl { overflow-x: auto; }
+.tbl { overflow: auto; max-height: min(360px, 50vh); }
+.tbl thead th { position: sticky; top: 0; background: var(--surface); }
+* { scrollbar-width: thin; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
 th { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }

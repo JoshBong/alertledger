@@ -3,8 +3,8 @@ import { ym, today, monthRange } from './format.js';
 
 const SLOTS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'];
 const CATEGORY_COLORS = {
-  'Food & Dining': 'var(--s2)', Groceries: 'var(--s3)', Shopping: 'var(--s5)', Travel: 'var(--s1)', Transport: 'var(--s4)',
-  'Bills & Subscriptions': 'var(--s7)', Health: 'var(--s6)', People: 'var(--s8)', Other: 'var(--gray)',
+  'Food & Dining': 'var(--s2)', Shopping: 'var(--s5)', Travel: 'var(--s1)', Transport: 'var(--s4)',
+  'Bills & Subscriptions': 'var(--s7)', People: 'var(--s3)', Other: 'var(--gray)',
 };
 
 export const store = {
@@ -12,7 +12,7 @@ export const store = {
   spend: [],            // rows that count as spending (purchases, refunds, zelle out) — excludes transfers/ignored
   months: [],           // continuous 'YYYY-MM' list, newest first
   accountColor: {},
-  state: { tab: 'spending', month: ym(today()), mode: 'cat', trend: 'total', filter: { q: '', month: '', account: '', category: '' } },
+  state: { tab: 'spending', month: ym(today()), mode: 'cat', expanded: null, trend: 'total', filter: { q: '', month: '', account: '', category: '' } },
 
   async load() {
     const r = await fetch('/api/data');
