@@ -17,6 +17,21 @@ statement-ready mail ──┘                                                  
   checksum (how much the alerts missed vs. the bank's balance), searchable transactions, **Sync now**.
 - **Zero dependencies.** Python stdlib only; SQLite on disk; one file of HTML.
 
+## Commands
+```
+./install.sh                      first install: setup wizard → first pull → register the service
+./alertledger status              service state · last sync · ledger totals · URL
+./alertledger stop | start        pause / resume the service (stays installed)
+./alertledger update              git pull → run tests → restart
+./alertledger doctor              check python · config · Gmail login · database · service · port
+./alertledger config              show config (password masked)
+./alertledger config set port 8090            also: sync_interval_min 30 · default_checking.Chase 1234
+./alertledger config gmail        re-enter the Gmail login (tested before saving)
+./alertledger sync [--full]       pull mail now from the terminal (--full = whole mailbox)
+./alertledger serve               run in the foreground (what the service runs)
+./alertledger install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
+```
+
 Caveats: alerts fire at authorization, so amounts can drift when they post (tips) — the checksum shows the drift. No history
 before you turned alerts on (except what your bank already emailed). Two identical purchases on the same day at the same
 merchant collapse into one row.
