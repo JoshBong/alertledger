@@ -42,7 +42,7 @@ export function CategoryCards({ items, total, hasPrev, elapsed, onSelect, select
         : it.budget
           ? BudgetBar({ spent: it.value, budget: it.budget, elapsed })
           : el('div', { class: 'sub' },
-              el('span', {}, pct(it.value, total) + ' of total'),
+              el('span', {}, it.value < 0 ? 'paid back more than sent' : pct(it.value, total) + ' of total'),
               hasPrev ? el('span', { class: it.delta > 0 ? 'up' : 'down' }, (it.delta > 0 ? '▲ ' : '▼ ') + money0(it.delta)) : el('span', {}, it.count + ' txns')));
   }));
 }
