@@ -12,7 +12,7 @@ bank purchase alert ──► Gmail ──► sync.py (IMAP, search by sender) �
 statement-ready mail ─────────────────────────────────────────────────────┘  (monthly checksum)
 ```
 
-## Supported (verified on real emails)
+## Supported
 | Bank | Email | Becomes |
 |---|---|---|
 | Chase | card / debit purchase alert | spend row |
@@ -22,7 +22,8 @@ statement-ready mail ───────────────────�
 | Bank of America | Zelle sent | spend row |
 | Bank of America | credit card statement available | statement balance (checksum) |
 
-Unrecognised mails from those senders go to `~/.alertledger/parse_failures.jsonl` — nothing is dropped silently.
+Statement and Zelle parsers are verified against real emails; purchase-alert parsers are written from the documented
+subject lines and are confirmed as real alerts arrive (Aug 2026). Unrecognised mails from those senders go to `~/.alertledger/parse_failures.jsonl` — nothing is dropped silently.
 Other banks: add a sender to `SENDERS`, a name to `BANKS`, and (if needed) a regex to `MERCHANT`/`LAST4`. PRs welcome.
 
 ## Setup
