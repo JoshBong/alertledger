@@ -157,4 +157,4 @@ def configure(default_checking: dict[str, str]):
             _REGISTRY[name].default_checking = last4
 
 
-from . import chase, bofa  # noqa: E402,F401  — importing registers them
+from . import chase, bofa, venmo  # noqa: E402,F401  — importing registers them

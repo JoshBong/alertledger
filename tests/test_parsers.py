@@ -269,3 +269,43 @@ class TidyTests(unittest.TestCase):
         self.assertEqual(types["SQ *RAMEN ISHIDA"], "card_payment")
         self.assertEqual(types["SOME STORE"], "card_payment")
         self.assertEqual(self.ledger.tidy(self.con), {"named_transfers": 0, "paired_transfers": 0})     # idempotent
+
+
+class VenmoTests(unittest.TestCase):
+    V = "venmo@venmo.com"
+
+    def test_paid(self):
+        p = parse("You paid Alvaro Rodriguez $5.00", self.V, "You paid Alvaro Rodriguez $5.00 You paid Alvaro Rodriguez $ 5. 00 Laundry card See transaction ## Transaction details### Date Aug 21, 2026### Status Completed ### Payment Method Venmo balance")
+        self.assertEqual((p.kind, p.amount, p.merchant, p.date, p.extra["note"]), ("zelle_out", 5.0, "Venmo to Alvaro Rodriguez", date(2026, 8, 21), "Laundry card"))
+
+    def test_completed_charge_request(self):
+        p = parse("You completed Joshua Krymgold's $15.00 charge request", self.V, "You completed Joshua Krymgold's $15.00 charge request Date Mar 02, 2026")
+        self.assertEqual((p.kind, p.amount, p.merchant), ("zelle_out", 15.0, "Venmo to Joshua Krymgold"))
+
+    def test_received_is_income(self):
+        p = parse("Sam Walton paid you $16.00", self.V, "Sam Walton paid you $ 16. 00 Mc’ds See transaction ## Money credited to your Venmo account. ## Transaction details### Date Aug 05, 2026")
+        self.assertEqual((p.kind, p.amount, p.merchant, p.txn_type), ("zelle_in", 16.0, "Venmo from Sam Walton", "transfer"))
+
+    def test_received_long_subject(self):
+        p = parse("Jovian Wang paid $16.00 to your Venmo account. Leave it in Venmo or transfer it to your bank account.", self.V, "Jovian wang paid you $ 16. 00 Borger See transaction Date Aug 29, 2026")
+        self.assertEqual((p.kind, p.merchant), ("zelle_in", "Venmo from Jovian Wang"))
+
+    def test_noise(self):
+        for s in ("Your Venmo Standard transfer has been initiated", "Reminder: Iain Kimpton requests $10.00", "Iain Kimpton requests $10.00",
+                  "Jovian Wang wants to be friends with you on Venmo", "Your July 2026 transaction history", "Sign-in attempt from new device",
+                  "Venmo Quarterly Statement", "Davide Farinacci commented on a payment between you and Riley"):
+            self.assertEqual(parse(s, self.V, "x").kind, "skip", s)
+        self.assertIsNone(parsers.for_sender("venmo@email.venmo.com"))       # marketing sender not registered
+
+
+class VenmoTidyTests(TidyTests):
+    def test_bank_side_venmo_rows_become_transfers(self):
+        self.ledger.ensure_account(self.con, "Venmo", None)
+        self.row("bankofamerica_1933", "2026-06-16", 228.28, "VENMO DES:CASHOUT ID:1046955793784")
+        self.row("bankofamerica_1933", "2026-07-27", -62.00, "VENMO DES:PAYMENT ID:5533")
+        self.row("venmo_xxxx", "2026-07-27", -62.00, "Venmo to Cesar Mata")
+        self.ledger.tidy(self.con)
+        types = {r["description"]: r["type"] for r in self.con.execute("SELECT description, type FROM transactions")}
+        self.assertEqual(types["VENMO DES:CASHOUT ID:1046955793784"], "transfer")
+        self.assertEqual(types["VENMO DES:PAYMENT ID:5533"], "transfer")
+        self.assertEqual(types["Venmo to Cesar Mata"], "card_payment")          # the real spend, counted once

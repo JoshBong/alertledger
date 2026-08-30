@@ -9,7 +9,9 @@ Turn on **email** alerts for every purchase, lowest threshold the bank allows. T
 | Bank of America credit card | Alerts → card → | **Credit card charge over $0**, **Credit received**, (charge made online is fine too — duplicates are merged) |
 | Bank of America checking | Alerts → checking | **Debit card charge made online, by phone, or mail** (BofA's per-swipe alert has a $100 minimum, so in-person debit swipes under $100 aren't captured) |
 
-Emails from other bank senders (marketing, promos) are ignored by sender address.
+| Venmo | nothing to set up | payment emails (`You paid…`, `… paid you`) are on by default |
+
+Emails from other bank senders (marketing, promos) are ignored by sender address. Bank-side `VENMO` rows (funding pulls, cash-outs) are treated as transfers so Venmo spend is counted once, from Venmo's own emails.
 
 ## 2. Google app password
 alertledger reads your Gmail over IMAP. Google requires an *app password* for that (your normal password won't work):

@@ -12,7 +12,7 @@ statement-ready mail ──┘                                                  
 ```
 
 - **Install:** `git clone https://github.com/JoshBong/alertledger && cd alertledger && ./install.sh` → [docs/setup.md](docs/setup.md)
-- **Banks:** Chase, Bank of America. Adding one is a ~40-line subclass → [docs/parsers.md](docs/parsers.md)
+- **Sources:** Chase, Bank of America, Venmo. Adding one is a ~40-line subclass → [docs/parsers.md](docs/parsers.md)
 - **Dashboard:** phone-first, four tabs — **Spending** (one month, donut by category or account, tap to drill), **Transactions**
   (filter/search), **Trends** (12 months, recurring charges, category month-over-month), **Data** (sync, accounts, CSV import, checksum).
 - **Backfill:** drag in Chase statement PDFs or bank CSV exports; posted rows replace the alert-time ones, the same file twice is ignored.

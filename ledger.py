@@ -30,13 +30,17 @@ def short(bank: str) -> str:
     return {"Bank of America": "BofA"}.get(bank, bank)
 
 
+def account_label(bank: str, last4) -> str:
+    return short(bank) if not last4 else f"{short(bank)} ••{last4}"
+
+
 def account_id(bank: str, last4: str | None) -> str:
     return f"{bank.lower().replace(' ', '')}_{last4 or 'xxxx'}"
 
 
 def ensure_account(con, bank: str, last4: str | None) -> str:
     aid = account_id(bank, last4)
-    con.execute("INSERT OR IGNORE INTO accounts VALUES (?,?,?,?)", (aid, bank, f"{short(bank)} ••{last4 or '????'}", last4))
+    con.execute("INSERT OR IGNORE INTO accounts VALUES (?,?,?,?)", (aid, bank, account_label(bank, last4), last4))
     return aid
 
 
@@ -135,8 +139,10 @@ def tidy(con) -> dict:
        → both type=transfer.  Transfers are excluded from spend and income."""
     last4s = [r["last_four"] for r in con.execute("SELECT last_four FROM accounts WHERE last_four IS NOT NULL")]
     n1 = n2 = 0
-    for r in con.execute("SELECT id, description FROM transactions WHERE type!='transfer'").fetchall():
+    for r in con.execute("SELECT id, description, account_id FROM transactions WHERE type!='transfer'").fetchall():
         d = (r["description"] or "").lower()
+        if "venmo" in d and not r["account_id"].startswith("venmo"):          # bank ↔ Venmo money movement; spend is counted from Venmo's own emails
+            con.execute("UPDATE transactions SET type='transfer' WHERE id=?", (r["id"],)); n1 += 1; continue
         if any(k in d for k in TRANSFERISH) and any(l in d for l in last4s):
             con.execute("UPDATE transactions SET type='transfer' WHERE id=?", (r["id"],)); n1 += 1
     ins = con.execute("""SELECT id, account_id, date, amount, description FROM transactions
