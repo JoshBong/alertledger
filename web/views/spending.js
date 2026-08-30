@@ -15,7 +15,8 @@ export function SpendingView({ rerender, goto }) {
   const prev = store.prevMonth(month);
   const key = store.keyFor(mode);
   const cur = sumBy(rows, key), old = prev ? sumBy(store.inMonth(prev), key) : {};
-  const total = Math.max(0, Object.values(cur).reduce((a, b) => a + b, 0));
+  const net = Object.values(cur).reduce((a, b) => a + b, 0);               // spend minus paybacks/refunds
+  const total = Object.values(cur).filter(v => v > 0).reduce((a, b) => a + b, 0);   // ring = the positive slices
 
   let items = Object.entries(cur).filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
   if (mode === 'cat' && items.length > MAX_SLICES) {                       // fold the tail into Other
@@ -53,8 +54,9 @@ export function SpendingView({ rerender, goto }) {
     MonthNav({ months: store.months, month, onChange: m => { store.state.month = m; rerender(); } }),
     el('div', { class: 'row', style: { justifyContent: 'center', marginBottom: '6px' } },
       Segmented({ options: [{ value: 'cat', label: 'by category' }, { value: 'acct', label: 'by account' }], value: mode, onChange: v => { store.state.mode = v; rerender(); } })),
-    Donut({ items: shaped.filter(i => i.value > 0), total, title: money0(total), onSelect: toggle,
-      subtitle: spentLine }),
+    Donut({ items: shaped.filter(i => i.value > 0), total, onSelect: toggle,
+      title: net < 0 ? '+' + money0(-net) : money0(net), titleClass: net < 0 ? 'down' : '',
+      subtitle: net < 0 ? 'net received in ' + monthLabel(month) + (total ? ` · ${money0(total)} spent` : '') : spentLine + (net !== total ? ` · ${money0(total)} before paybacks` : '') }),
     CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded,
       editing: store.state.editing, onEdit: k => { store.state.editing = k; rerender(); }, onSaveBudget: saveBudget }),
     detail,

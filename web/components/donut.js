@@ -3,7 +3,7 @@ import { money, pct } from '../lib/format.js';
 import { attach } from '../lib/tooltip.js';
 
 // Donut({ items: [{key, value, color}], total, title, subtitle, onSelect })
-export function Donut({ items, total, title, subtitle, onSelect }) {
+export function Donut({ items, total, title, titleClass = '', subtitle, onSelect }) {
   const R = 80, r = 58, C = 100, GAP = items.length > 1 ? 0.02 : 0;
   const chart = svg('svg', { viewBox: '0 0 200 200', role: 'img', 'aria-label': title });
   if (!total) chart.append(svg('circle', { cx: C, cy: C, r: (R + r) / 2, fill: 'none', stroke: 'var(--line)', 'stroke-width': R - r }));
@@ -28,5 +28,5 @@ export function Donut({ items, total, title, subtitle, onSelect }) {
     chart.append(path);
   }
   return el('div', { class: 'donut' }, chart,
-    el('div', { class: 'center' }, el('div', { class: 'big num' }, title), ...String(subtitle).split('\n').map(l => el('div', { class: 'sub' }, l))));
+    el('div', { class: 'center' }, el('div', { class: 'big num ' + titleClass }, title), ...String(subtitle).split('\n').map(l => el('div', { class: 'sub' }, l))));
 }

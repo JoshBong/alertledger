@@ -55,6 +55,7 @@ section.panel > h3 .muted { text-transform: none; letter-spacing: 0; font-weight
 .month-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 14px; }
 .month-nav h2 { margin: 0; font-size: 18px; min-width: 150px; text-align: center; }
 .month-nav button { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+.month-nav button.today { width: auto; padding: 0 12px; border-radius: 999px; font-size: 12px; color: var(--ink-2); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .seg button { border: 0; border-radius: 0; padding: 6px 14px; background: transparent; color: var(--ink-2); }
 .seg button.on { background: var(--ink); color: var(--bg); }
