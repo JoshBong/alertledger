@@ -199,7 +199,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/budget":
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
             import categories
-            if body.get("category") not in categories.CATEGORIES + ["__remaining__"]:
+            if body.get("category") not in categories.CATEGORIES + ["__total__"]:
                 self._send(json.dumps({"error": "unknown category"}).encode(), "application/json", 400); return
             with self.lock:
                 ledger.set_budget(self.con, body["category"], body.get("amount"))
