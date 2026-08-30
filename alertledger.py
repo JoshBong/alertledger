@@ -176,7 +176,13 @@ def stop():
         r = subprocess.run(["launchctl", "unload", str(plist)], capture_output=True, text=True)
     else:
         r = subprocess.run(["systemctl", "disable", "--now", SERVICE], capture_output=True, text=True)
-    print("stopped (won't start at boot until ./alertledger start)" if r.returncode == 0 else f"nothing to stop: {r.stderr.strip() or 'not installed'}")
+    if r.returncode != 0:
+        raise SystemExit(f"nothing to stop: {r.stderr.strip() or 'not installed'}")
+    for _ in range(20):
+        if not _port_open(config.load()["port"]):
+            break
+        time.sleep(0.5)
+    print("  ■ alertledger stopped — won't start at boot until ./alertledger start")
 
 
 def start():
@@ -185,9 +191,51 @@ def start():
         if not plist.exists():
             raise SystemExit("not installed — run ./alertledger install")
         r = subprocess.run(["launchctl", "load", str(plist)], capture_output=True, text=True)
+        subprocess.run(["launchctl", "kickstart", f"gui/{os.getuid()}/io.{SERVICE}"], capture_output=True)  # load alone may not launch
     else:
         r = subprocess.run(["systemctl", "enable", "--now", SERVICE], capture_output=True, text=True)
-    print("started" if r.returncode == 0 else f"failed: {r.stderr.strip()}")
+    if r.returncode != 0:
+        raise SystemExit(f"failed: {r.stderr.strip()}")
+    _announce(config.load()["port"])
+
+
+def _lan_ip() -> str | None:
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("10.255.255.255", 1))
+            return sock.getsockname()[0]
+    except Exception:
+        return None
+
+
+def _announce(port: int, wait: int = 15):
+    """Block until the server answers (or `wait` seconds), then print where it lives — or the log tail if it didn't come up."""
+    import urllib.request
+    for _ in range(wait * 2):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as r:
+                st = json.load(r)
+            host = subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip()
+            lan = _lan_ip()
+            print(f"""
+  ✓ alertledger is up
+    this machine   http://localhost:{port}
+    on your LAN    http://{host}:{port}""" + (f"\n                   http://{lan}:{port}" if lan else "") + f"""
+    via Tailscale  http://<tailscale-name>:{port}
+    last sync      {st.get('last_sync') or 'never — first sync starts now'}
+    logs           {config.HOME / 'serve.log' if sys.platform == 'darwin' else 'journalctl -u ' + SERVICE + ' -f'}
+""")
+            return True
+        except Exception:
+            time.sleep(0.5)
+    print(f"\n  ✗ not answering on :{port} after {wait}s. Last log lines:")
+    log = config.HOME / "serve.log"
+    if log.exists():
+        print("    " + "\n    ".join(log.read_text().splitlines()[-8:]))
+    else:
+        subprocess.run(["journalctl", "-u", SERVICE, "-n", "8", "--no-pager"])
+    return False
 
 
 def _port_open(port: int) -> bool:
@@ -282,7 +330,8 @@ def install():
                                           "StandardOutPath": str(config.HOME / "serve.log"), "StandardErrorPath": str(config.HOME / "serve.log")}))
         subprocess.run(["launchctl", "unload", str(plist)], capture_output=True)
         subprocess.run(["launchctl", "load", str(plist)], check=True)
-        print(f"launchd: {plist} loaded (starts at login, restarts if it dies). log: {config.HOME / 'serve.log'}")
+        subprocess.run(["launchctl", "kickstart", f"gui/{os.getuid()}/io.{SERVICE}"], capture_output=True)
+        print(f"launchd: {plist} (starts at login, restarts if it dies)")
     else:
         unit = f"""[Unit]
 Description=alertledger
@@ -305,8 +354,8 @@ WantedBy=multi-user.target
             raise SystemExit(f"need root to write {path}: rerun with  sudo -E {py} {script} install")
         for c in (["systemctl", "daemon-reload"], ["systemctl", "enable", "--now", SERVICE]):
             subprocess.run(c, check=True)
-        print(f"systemd: {SERVICE} enabled + started. status: systemctl status {SERVICE} · logs: journalctl -u {SERVICE} -f")
-    print(f"dashboard: http://{subprocess.run(['hostname'], capture_output=True, text=True).stdout.strip()}:{config.load().get('port', 8080)}")
+        print(f"systemd: {SERVICE} enabled (starts at boot, restarts on failure)")
+    _announce(config.load()["port"])
 
 
 def uninstall():
