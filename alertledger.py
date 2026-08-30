@@ -64,6 +64,8 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
                 counts["skip"] += 1
             else:
                 counts[ledger.record(con, bank.name, p, e.subject)] += 1
+                if (counts["txn"] + counts["statement"]) % 50 == 0:
+                    con.commit()                                       # short transactions: a full sync must not lock the DB for minutes
     ledger.tidy(con)
     ledger.set_meta(con, "last_sync", datetime.now().isoformat(timespec="seconds"))
     ledger.set_meta(con, "last_counts", json.dumps(counts))
