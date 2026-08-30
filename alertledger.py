@@ -155,7 +155,7 @@ def _service_state() -> str:
             if line.endswith(f"io.{SERVICE}"):
                 pid = line.split()[0]
                 return f"launchd: running (pid {pid})" if pid != "-" else "launchd: loaded, not running"
-        return "launchd: not installed"
+        return "launchd: installed, stopped" if (Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist").exists() else "launchd: not installed"
     out = subprocess.run(["systemctl", "is-active", SERVICE], capture_output=True, text=True).stdout.strip()
     return f"systemd: {out or 'not installed'}"
 
@@ -217,12 +217,13 @@ def _announce(port: int, wait: int = 15):
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as r:
                 st = json.load(r)
             host = subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip()
-            lan = _lan_ip()
+            ip = _lan_ip()
+            ts = ip if ip and ip.startswith("100.") and 64 <= int(ip.split(".")[1]) <= 127 else None   # Tailscale CGNAT range
             print(f"""
   ✓ alertledger is up
     this machine   http://localhost:{port}
-    on your LAN    http://{host}:{port}""" + (f"\n                   http://{lan}:{port}" if lan else "") + f"""
-    via Tailscale  http://<tailscale-name>:{port}
+    on your LAN    http://{host}:{port}""" + (f"\n                   http://{ip}:{port}" if ip and not ts else "")
+                  + (f"\n    via Tailscale  http://{ts}:{port}  (also http://{host.split('.')[0]}:{port} on the tailnet)" if ts else f"\n    via Tailscale  install it → http://<tailscale-name>:{port}") + f"""
     last sync      {st.get('last_sync') or 'never — first sync starts now'}
     logs           {config.HOME / 'serve.log' if sys.platform == 'darwin' else 'journalctl -u ' + SERVICE + ' -f'}
 """)
