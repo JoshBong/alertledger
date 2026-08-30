@@ -93,7 +93,7 @@ def record(con, bank: str, p: Parsed, subject: str) -> str:
     today = date.today().isoformat()
     con.execute("""INSERT INTO transactions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen""",
-                (tid, aid, d, p.merchant, amt, "pending", p.txn_type, None, p.merchant,
+                (tid, aid, d, p.merchant, amt, "posted" if p.posted else "pending", p.txn_type, None, p.merchant,
                  json.dumps({"subject": subject, "kind": p.kind}), today, today))
     return "txn"
 

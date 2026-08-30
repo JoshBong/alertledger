@@ -23,13 +23,13 @@ class Venmo(BankParser):
         amt = self.amount(e.subject) or self._spaced_amount(e.body)
         if amt is None:
             return None
-        return Parsed("zelle_out", amt, "Venmo to " + who, None, self.date(e.body, e.received, "Date"), extra={"note": self._note(e.body, who)})
+        return Parsed("zelle_out", amt, "Venmo to " + who, None, self.date(e.body, e.received, "Date"), posted=True, extra={"note": self._note(e.body, who)})   # Venmo emails are final
 
     def received(self, e: Email):
         m = re.match(r"(.+?) paid (?:you )?\$", e.subject) or re.match(r"You received \$[\d.,]+ from (.+)$", e.subject)
         who = (m.group(1) if m else "?").strip()
         amt = self.amount(e.subject) or self._spaced_amount(e.body)
-        return Parsed("zelle_in", amt, "Venmo from " + who, None, self.date(e.body, e.received, "Date")) if amt else None
+        return Parsed("zelle_in", amt, "Venmo from " + who, None, self.date(e.body, e.received, "Date"), posted=True) if amt else None
 
     @staticmethod
     def _spaced_amount(text):        # bodies render "$ 5. 00"

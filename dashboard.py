@@ -16,7 +16,7 @@ def collect(con, rules):
     tx = []
     for r in con.execute("SELECT t.*, a.institution, a.last_four FROM transactions t JOIN accounts a ON a.id=t.account_id ORDER BY t.date DESC, t.id"):
         cat, ignore = report.classify(r, rules)
-        tx.append({"id": r["id"], "date": r["date"], "acct": r["account_id"], "card": f"{short(r['institution'])} ••{r['last_four'] or '????'}",
+        tx.append({"id": r["id"], "date": r["date"], "acct": r["account_id"], "card": ledger.account_label(r["institution"], r["last_four"]),
                    "merchant": r["description"], "amount": round(r["amount"], 2), "cat": cat, "type": r["type"],
                    "ignore": ignore, "status": r["status"]})
     accounts = [{"id": r["id"], "name": r["name"]} for r in con.execute("SELECT id, name FROM accounts ORDER BY name")]
@@ -28,7 +28,7 @@ def recurring(con, rules):
     from datetime import datetime
     groups = defaultdict(list)
     for row, cat in report.spend_rows(con, rules):
-        groups[report.merchant_key(row)].append((datetime.fromisoformat(row["date"]).date(), -row["amount"], f"{short(row['institution'])} ••{row['last_four']}", cat))
+        groups[report.merchant_key(row)].append((datetime.fromisoformat(row["date"]).date(), -row["amount"], ledger.account_label(row["institution"], row["last_four"]), cat))
     out = []
     for k, items in groups.items():
         items.sort(); hits = set()
@@ -48,7 +48,7 @@ def checksum(con):
         since = p["statement_date"] if p else (date.fromisoformat(r["statement_date"]) - timedelta(days=31)).isoformat()
         ours = con.execute("SELECT COALESCE(SUM(-amount),0) FROM transactions WHERE account_id=? AND date>? AND date<=? AND type NOT IN ('transfer')",
                            (r["account_id"], since, r["statement_date"])).fetchone()[0]
-        out.append({"card": f"{short(r['institution'])} ••{r['last_four']}", "date": r["statement_date"], "bank": r["balance"], "ours": ours, "gap": r["balance"] - ours})
+        out.append({"card": ledger.account_label(r["institution"], r["last_four"]), "date": r["statement_date"], "bank": r["balance"], "ours": ours, "gap": r["balance"] - ours})
     return sorted(out, key=lambda r: r["date"], reverse=True)
 
 
