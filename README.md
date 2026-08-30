@@ -10,8 +10,8 @@ credentials, no subscription, no data leaving your machine.
   HTML. View it from your phone over your LAN or Tailscale.
 - **Zero dependencies.** Python 3.11+ standard library only. `git clone` and run.
 - **Backfill history** by dropping bank statement PDFs / CSV exports; imports dedupe and replace the alert-time rows.
-- **Sources today:** Chase, Bank of America, Venmo. Adding a bank is a ~40-line subclass →
-  [docs/parsers.md](docs/parsers.md).
+- **Sources today:** Chase, Bank of America, Venmo. **Adding a bank** = one subclass with email, CSV and PDF hooks →
+  [docs/parsers.md](docs/parsers.md). PRs welcome.
 
 ```
 bank purchase alert ──► Gmail ──► alertledger (hourly IMAP pull + web UI) ──► http://your-box:8080
