@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   status TEXT, type TEXT, category TEXT, counterparty TEXT, raw TEXT, first_seen TEXT, last_seen TEXT);
 CREATE TABLE IF NOT EXISTS statements (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, statement_date TEXT NOT NULL, balance REAL NOT NULL, due_date TEXT);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS budgets (category TEXT PRIMARY KEY, amount REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS tx_date ON transactions(date);
 """
 
@@ -84,3 +85,15 @@ def set_meta(con, key: str, value: str):
 def get_meta(con, key: str, default=None):
     r = con.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
     return r["value"] if r else default
+
+
+def budgets(con) -> dict:
+    return {r["category"]: r["amount"] for r in con.execute("SELECT category, amount FROM budgets")}
+
+
+def set_budget(con, category: str, amount: float | None):
+    if amount is None or amount <= 0:
+        con.execute("DELETE FROM budgets WHERE category=?", (category,))
+    else:
+        con.execute("INSERT INTO budgets VALUES (?,?) ON CONFLICT(category) DO UPDATE SET amount=excluded.amount", (category, float(amount)))
+    con.commit()

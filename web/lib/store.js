@@ -12,7 +12,7 @@ export const store = {
   spend: [],            // rows that count as spending (purchases, refunds, zelle out) — excludes transfers/ignored
   months: [],           // continuous 'YYYY-MM' list, newest first
   accountColor: {},
-  state: { tab: 'spending', month: ym(today()), mode: 'cat', expanded: null, trend: 'total', filter: { q: '', month: '', account: '', category: '' } },
+  state: { tab: 'spending', month: ym(today()), mode: 'cat', expanded: null, editing: null, trend: 'total', filter: { q: '', month: '', account: '', category: '' } },
 
   async load() {
     const r = await fetch('/api/data');
@@ -27,6 +27,22 @@ export const store = {
     return this;
   },
 
+  get budgets() { return this.data.budgets || {}; },
+  // fraction of the month elapsed (1 for past months, 0..1 for the current one)
+  elapsed(m) {
+    const t = today();
+    if (m < ym(t)) return 1;
+    if (m > ym(t)) return 0;
+    const days = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate();
+    return +t.slice(8, 10) / days;
+  },
+  // average monthly spend for a category over the 3 months before `m`
+  avg3(cat, m) {
+    const i = this.months.indexOf(m);
+    const prev = this.months.slice(i + 1, i + 4);
+    if (!prev.length) return 0;
+    return prev.reduce((s, pm) => s + this.inMonth(pm).filter(t => t.cat === cat).reduce((a, t) => a - t.amount, 0), 0) / prev.length;
+  },
   get categories() { return this.data.categories; },
   get other() { return this.data.categories[this.data.categories.length - 1]; },
   categoryColor(c) { return CATEGORY_COLORS[c] || 'var(--gray)'; },

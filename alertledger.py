@@ -131,6 +131,14 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(json.dumps(import_csv(self.con, acct, body)).encode(), "application/json")
                 except Exception as ex:
                     self._send(json.dumps({"error": str(ex)}).encode(), "application/json", 400)
+        elif self.path == "/api/budget":
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            import categories
+            if body.get("category") not in categories.CATEGORIES:
+                self._send(json.dumps({"error": "unknown category"}).encode(), "application/json", 400); return
+            with self.lock:
+                ledger.set_budget(self.con, body["category"], body.get("amount"))
+            self._send(json.dumps(ledger.budgets(self.con)).encode(), "application/json")
         elif self.path == "/api/sync":
             with self.lock:
                 try:

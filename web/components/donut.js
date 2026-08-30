@@ -28,5 +28,5 @@ export function Donut({ items, total, title, subtitle, onSelect }) {
     chart.append(path);
   }
   return el('div', { class: 'donut' }, chart,
-    el('div', { class: 'center' }, el('div', { class: 'big num' }, title), el('div', { class: 'sub' }, subtitle)));
+    el('div', { class: 'center' }, el('div', { class: 'big num' }, title), ...String(subtitle).split('\n').map(l => el('div', { class: 'sub' }, l))));
 }

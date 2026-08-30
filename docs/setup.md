@@ -37,6 +37,12 @@ and import it — Data tab → *Import a bank CSV*, or `./alertledger import cha
 by `./alertledger status`). Imported rows are the bank's posted data: they replace pending alert rows for the same charge and
 carry the bank's category where it provides one (Chase does).
 
+## Budgets
+On the Spending tab, each category card has **+ budget**. Set a monthly amount (or take the 3-month average it suggests).
+The card then shows a bar of spent-vs-budget with a tick at "where you should be today", the projected month-end pace, and
+the donut shows total spent vs total budgeted. No rollover; budgets are the same every month until you change them.
+Stored in the database (`budgets` table).
+
 ## Categories
 The fixed set is in `categories.py`: Food & Dining · Groceries · Shopping · Travel · Transport · Bills & Subscriptions · Health · People · Other.
 `rules.toml` (copied from `rules.example.toml` on setup) maps merchant regexes into them; `ignore = true` drops own-account payments from spend. The Spending tab shows how many transactions fell into Other, so you know when to add a rule.

@@ -1,5 +1,5 @@
 import { el } from '../lib/dom.js';
-import { store, sumBy } from '../lib/store.js';
+import { store, sumBy, api } from '../lib/store.js';
 import { money0, monthLabel, ym, today } from '../lib/format.js';
 import { MonthNav } from '../components/monthNav.js';
 import { Segmented } from '../components/segmented.js';
@@ -23,11 +23,21 @@ export function SpendingView({ rerender, goto }) {
     const other = tail.reduce((s, [, v]) => s + v, 0) + (head.find(([k]) => k === store.other)?.[1] || 0);
     items = [...head.filter(([k]) => k !== store.other), [store.other, other]];
   }
+  const byCat = mode === 'cat';
+  if (byCat) for (const c of Object.keys(store.budgets)) if (!items.some(([k]) => k === c)) items.push([c, 0]);   // budgeted but unspent: still show
   const shaped = items.map(([k, v]) => ({
     key: k, value: v, color: store.colorFor(mode, k), delta: v - (old[k] || 0),
     count: rows.filter(t => key(t) === k).length,
-    label: k === store.other && mode === 'cat' ? `${k} · ${rows.filter(t => t.cat === k).length} uncategorized` : k,
+    label: k === store.other && byCat ? `${k} · ${rows.filter(t => t.cat === k).length} uncategorized` : k,
+    budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat && k !== store.other,
   }));
+  const budgetTotal = byCat ? Object.values(store.budgets).reduce((a, b) => a + b, 0) : 0;
+  const elapsed = store.elapsed(month);
+  const saveBudget = async (cat, amount) => {
+    try { store.data.budgets = await api('/api/budget', { method: 'POST', body: JSON.stringify({ category: cat, amount }) }); }
+    catch (e) { alert('could not save budget: ' + e.message); }
+    store.state.editing = null; rerender();
+  };
 
   const expanded = store.state.expanded;
   const toggle = k => { store.state.expanded = expanded === k ? null : k; rerender(); };
@@ -40,13 +50,15 @@ export function SpendingView({ rerender, goto }) {
       el('button', { class: 'muted', style: { padding: '2px 8px' }, onclick: () => toggle(expanded), 'aria-label': 'close' }, '✕')),
     TxList({ rows: detailRows, colorFor: c => store.categoryColor(c), limit: 60 })) : null;
   const isCurrent = month === ym(today());
+  const spentLine = isCurrent ? 'spent so far · as of ' + new Date(today() + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'spent in ' + monthLabel(month);
   return el('div', {},
     MonthNav({ months: store.months, month, onChange: m => { store.state.month = m; rerender(); } }),
     el('div', { class: 'row', style: { justifyContent: 'center', marginBottom: '6px' } },
       Segmented({ options: [{ value: 'cat', label: 'by category' }, { value: 'acct', label: 'by account' }], value: mode, onChange: v => { store.state.mode = v; rerender(); } })),
-    Donut({ items: shaped, total, title: money0(total), onSelect: toggle,
-      subtitle: isCurrent ? 'spent so far · as of ' + new Date(today() + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'spent in ' + monthLabel(month) }),
-    CategoryCards({ items: shaped, total, hasPrev: !!prev, onSelect: toggle, selected: expanded }),
+    Donut({ items: shaped.filter(i => i.value > 0), total, title: money0(total), onSelect: toggle,
+      subtitle: budgetTotal ? `${spentLine}\nof ${money0(budgetTotal)} budgeted · ${Math.round(100 * total / budgetTotal)}%` : spentLine }),
+    CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded,
+      editing: store.state.editing, onEdit: k => { store.state.editing = k; rerender(); }, onSaveBudget: saveBudget }),
     detail,
   );
 }

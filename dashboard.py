@@ -70,7 +70,7 @@ def data(con) -> dict:
     rules = report.load_rules()
     tx, accounts = collect(con, rules)
     return {"tx": tx, "accounts": accounts, "categories": categories.CATEGORIES, "recurring": recurring(con, rules), "checksum": checksum(con),
-            "failures": failures(), "last_sync": ledger.get_meta(con, "last_sync"), "last_counts": json.loads(ledger.get_meta(con, "last_counts", "{}"))}
+            "budgets": ledger.budgets(con), "failures": failures(), "last_sync": ledger.get_meta(con, "last_sync"), "last_counts": json.loads(ledger.get_meta(con, "last_counts", "{}"))}
 
 
 if __name__ == "__main__":
