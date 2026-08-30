@@ -170,7 +170,10 @@ def _restart_service():
 
 def stop():
     if sys.platform == "darwin":
-        r = subprocess.run(["launchctl", "unload", str(Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist")], capture_output=True, text=True)
+        plist = Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist"
+        if not plist.exists():
+            raise SystemExit("not installed — nothing to stop")
+        r = subprocess.run(["launchctl", "unload", str(plist)], capture_output=True, text=True)
     else:
         r = subprocess.run(["systemctl", "disable", "--now", SERVICE], capture_output=True, text=True)
     print("stopped (won't start at boot until ./alertledger start)" if r.returncode == 0 else f"nothing to stop: {r.stderr.strip() or 'not installed'}")
