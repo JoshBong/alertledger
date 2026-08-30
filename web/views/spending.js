@@ -28,7 +28,7 @@ export function SpendingView({ rerender, goto }) {
   const shaped = items.map(([k, v]) => ({
     key: k, value: v, color: store.colorFor(mode, k), delta: v - (old[k] || 0),
     count: rows.filter(t => key(t) === k).length,
-    budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat && k !== store.other,
+    budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat, label: k === store.other && byCat ? 'Everything else' : k,
   }));
   const elapsed = store.elapsed(month);
   const saveBudget = async (cat, amount) => {

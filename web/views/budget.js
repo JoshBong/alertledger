@@ -9,12 +9,12 @@ export function BudgetView({ rerender }) {
   const { month } = store.state;
   const rows = store.inMonth(month);
   const cur = sumBy(rows, t => t.cat);
-  const cats = store.categories.filter(c => c !== store.other);
+  const cats = store.categories;                               // Other = "everything else" budget; total = sum of all
   const budgets = store.budgets;
-  const items = cats.map(c => ({ key: c, value: cur[c] || 0, color: store.categoryColor(c), count: rows.filter(t => t.cat === c).length,
+  const items = cats.map(c => ({ key: c, label: c === store.other ? 'Everything else' : c, value: cur[c] || 0, color: store.categoryColor(c), count: rows.filter(t => t.cat === c).length,
     budget: budgets[c], suggest: store.avg3(c, month), budgetable: true, delta: 0 }));
-  const budgeted = items.filter(i => i.budget);
-  const spent = budgeted.reduce((s, i) => s + i.value, 0), total = budgeted.reduce((s, i) => s + i.budget, 0);
+  const total = items.reduce((s, i) => s + (i.budget || 0), 0);
+  const spent = total ? items.reduce((s, i) => s + i.value, 0) : 0;      // all spend counts against the total
   const elapsed = store.elapsed(month);
   const isCurrent = month === ym(today());
   const days = new Date(+month.slice(0, 4), +month.slice(5, 7), 0).getDate();
@@ -30,7 +30,10 @@ export function BudgetView({ rerender }) {
     el('div', { class: 'budget' }, el('div', { class: 'bar' + (spent > total ? ' over' : spent > total * elapsed * 1.05 ? ' ahead' : '') },
       el('div', { class: 'fill', style: { width: Math.min(100, 100 * spent / total) + '%' } }),
       elapsed > 0 && elapsed < 1 ? el('div', { class: 'tick', style: { left: (elapsed * 100) + '%' } }) : null)),
-    el('div', { class: 'muted' }, spent > total ? `over by ${money0(spent - total)}` : `${money0(total - spent)} left` + (elapsed > 0 && elapsed < 1 ? ` · on pace for ${money0(spent / elapsed)}` : '')))
+    el('div', { class: 'muted' }, spent > total ? `over by ${money0(spent - total)}` : `${money0(total - spent)} left` + (elapsed > 0 && elapsed < 1 ? ` · on pace for ${money0(spent / elapsed)}` : '')),
+    el('div', { class: 'stack', title: 'spend by category' }, ...items.filter(i => i.value > 0).map(i =>
+      el('div', { class: 'seg', style: { width: (100 * i.value / Math.max(total, spent)) + '%', '--c': i.color }, title: `${i.label}: ${money0(i.value)}` }))),
+    el('div', { class: 'legend' }, ...items.filter(i => i.value > 0).map(i => el('span', {}, el('i', { class: 'dot', style: { '--c': i.color } }), `${i.label} ${money0(i.value)}`))))
     : el('div', { class: 'empty' }, 'No budgets yet. Tap + budget on a category — "avg" fills in your 3-month average.');
   return el('div', {},
     MonthNav({ months: store.months, month, onChange: m => { store.state.month = m; rerender(); } }),

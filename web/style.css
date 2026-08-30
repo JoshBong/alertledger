@@ -150,3 +150,6 @@ td.n, th.n { text-align: right; }
 .import-results { margin-top: 10px; display: grid; gap: 4px; font-size: 13px; }
 .overall .big { font-size: 26px; font-weight: 700; }
 .overall .pct { font-size: 26px; font-weight: 700; color: var(--ink-2); }
+.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); margin: 10px 0 6px; }
+.stack .seg { background: var(--c); min-width: 2px; }
+.stack .seg + .seg { border-left: 1px solid var(--surface); }
