@@ -118,7 +118,8 @@ class Chase(BankParser):
             u = line.strip().upper()
             if u.startswith("PAYMENTS AND OTHER CREDITS"): section = "credits"; continue
             if u == "PURCHASE" or u.startswith("PURCHASE "): section = "purchase"; continue
-            if u.startswith(("INTEREST CHARGED", "FEES CHARGED", "TOTALS YEAR", "INTEREST CHARGES", "ACCOUNT ACTIVITY")): section = None if not u.startswith("ACCOUNT ACTIVITY") else section
+            if u.startswith("FEES CHARGED") or u.startswith("INTEREST CHARGED"): section = "fee"; continue
+            if u.startswith(("TOTALS YEAR", "INTEREST CHARGES", "YEAR-TO-DATE")): section = None
             r = self.ROW.match(line)
             if not r or not section:
                 continue
@@ -130,6 +131,9 @@ class Chase(BankParser):
                 if "PAYMENT" in desc.upper():
                     continue                                                # own payment
                 yield Parsed("refund", abs(amt), desc, None, d, posted=True)
+            elif section == "fee":
+                if amt:
+                    yield Parsed("purchase", abs(amt), "Fee: " + desc.title(), None, d, posted=True)
             else:
                 yield Parsed("refund" if amt < 0 else "purchase", abs(amt), desc, None, d, posted=True)
         nb = re.search(r"New Balance\s+\$?([\d,]+\.\d{2})", text)

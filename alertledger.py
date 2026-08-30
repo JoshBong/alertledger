@@ -106,11 +106,11 @@ def detect_account(con, filename: str, text: str, bank=None):
     return accts[0]["id"] if len(accts) == 1 else None
 
 
-def import_file(con, filename: str, data: bytes, account_id_: str | None = None) -> dict:
+def import_file(con, filename: str, data: bytes, account_id_: str | None = None, force: bool = False) -> dict:
     import csv, hashlib, io
     sha = hashlib.sha256(data).hexdigest()
     prev = ledger.seen_file(con, sha)
-    if prev:
+    if prev and not force:
         return {"skipped": True, "reason": f"already imported as {prev['filename']} on {prev['imported_at']}", "new": 0, "upgraded": 0, "dup": 0}
     is_pdf = data[:5] == b"%PDF-" or filename.lower().endswith(".pdf")
     banks = list(parsers._REGISTRY.values())
@@ -550,6 +550,7 @@ if __name__ == "__main__":
     ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update", "import", "backup", "restore"])
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--account", help="account id for import when it can't be detected")
+    ap.add_argument("--force", action="store_true", help="import: re-read a file already imported (rows still dedupe)")
     ap.add_argument("rest", nargs="*")
     a = ap.parse_args()
     if a.cmd == "setup":
@@ -588,6 +589,6 @@ if __name__ == "__main__":
         con = ledger.connect(str(config.DB))
         for f in a.rest:
             try:
-                print(Path(f).name, "→", import_file(con, Path(f).name, Path(f).read_bytes(), a.account))
+                print(Path(f).name, "→", import_file(con, Path(f).name, Path(f).read_bytes(), a.account, force=a.force))
             except Exception as ex:
                 print(Path(f).name, "→ FAILED:", ex)
