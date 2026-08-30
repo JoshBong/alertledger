@@ -145,3 +145,51 @@ class CsvTests(unittest.TestCase):
     def test_wrong_csv_raises(self):
         with self.assertRaises(ValueError):
             list(parsers.for_sender(CHASE).csv_rows(["a", "b"], [["1", "2"]]))
+
+
+class ChasePdfTests(unittest.TestCase):
+    CARD = """    Previous Balance                                                            $831.90
+    New Balance                                                                 $663.16
+    Opening/Closing Date                                          07/22/26 - 08/21/26
+PAYMENTS AND OTHER CREDITS
+  08/18                    AUTOMATIC PAYMENT - THANK YOU                                                                            -831.90
+  08/10                    AMAZON.COM REFUND                                                                                        -12.00
+PURCHASE
+  07/22                    TST*SEOUL SALON New York NY                                                                                99.00
+  05/28                    SKEJOOL SUNGSOO SEOUL                                                                                     29.01
+  05/29                    WON
+  43,300 X 0.000669976 (EXCHG RATE)
+  08/15                    SHANGHAI MONG NEW YORK NY                                                                                  60.00
+INTEREST CHARGES
+"""
+    CHECKING = """                                       July 25, 2026 through August 26, 2026
+           TRANSACTION DETAIL
+                                                  Beginning Balance                                                                                                $938.25
+             07/27                              Recurring Card Purchase 07/26 Apple.Com/Bill 866-712-7753 CA Card 6066                       -9.99                  928.26
+             07/29                              Online Transfer 30184458620 From Adv Safebalance Banking                                  2,000.00                 2,928.26
+             08/19                              Chase Credit Crd Autopay                  PPD ID: 4760039224                               -831.90                 2,096.36
+             08/21                              Zelle Payment From Reuben Miranda 30503184858                                               54.00                  2,150.36
+             08/24                              Zelle Payment To Zhitong Liu Jpm99CU4Mju2                                                   -47.50                 2,102.86
+                                                  Ending Balance                                                                                              $2,092.87
+"""
+
+    def test_card_statement(self):
+        rows = list(parsers.for_sender(CHASE).pdf_rows(self.CARD, "20260821-statements-2637-.pdf"))
+        kinds = [(p.kind, p.amount, p.merchant[:16], p.date) for p in rows]
+        self.assertIn(("refund", 12.0, "AMAZON.COM REFUN", date(2026, 8, 10)), kinds)
+        self.assertIn(("purchase", 99.0, "TST*SEOUL SALON ", date(2026, 7, 22)), kinds)
+        self.assertNotIn("WON", [p.merchant for p in rows])                        # FX continuation lines skipped
+        self.assertFalse(any("PAYMENT" in p.merchant for p in rows))                # autopay is not spend
+        st = [p for p in rows if p.kind == "statement"][0]
+        self.assertEqual((st.balance, st.date), (663.16, date(2026, 8, 21)))
+        self.assertEqual([p for p in rows if p.merchant.startswith("SKEJOOL")][0].date.year, 2026)   # out-of-window date still gets a sane year
+
+    def test_checking_statement(self):
+        rows = list(parsers.for_sender(CHASE).pdf_rows(self.CHECKING, "20260826-statements-0946-.pdf"))
+        self.assertEqual([(p.kind, p.amount, p.merchant) for p in rows],
+                         [("purchase", 9.99, "Apple.Com/Bill 866-712-7753 CA"), ("zelle_in", 54.0, "Zelle from Reuben Miranda"), ("zelle_out", 47.5, "Zelle to Zhitong Liu")])
+        self.assertEqual(rows[0].date, date(2026, 7, 27))
+
+    def test_not_chase(self):
+        with self.assertRaises(ValueError):
+            list(parsers.for_sender(CHASE).pdf_rows("Bank of America statement", "x.pdf"))

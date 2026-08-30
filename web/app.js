@@ -5,8 +5,9 @@ import { SpendingView } from './views/spending.js';
 import { TransactionsView } from './views/transactions.js';
 import { TrendsView } from './views/trends.js';
 import { DataView } from './views/data.js';
+import { BudgetView } from './views/budget.js';
 
-const VIEWS = { spending: SpendingView, transactions: TransactionsView, trends: TrendsView, data: DataView };
+const VIEWS = { spending: SpendingView, budget: BudgetView, transactions: TransactionsView, trends: TrendsView, data: DataView };
 const root = document.getElementById('app');
 
 function render(opts = {}) {

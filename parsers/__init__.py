@@ -79,6 +79,17 @@ class BankParser:
         because one bank ships different layouts per account type. Raise ValueError if the header isn't yours."""
         raise ValueError(f"{self.name}: CSV import not implemented")
 
+    def pdf_rows(self, text: str, filename: str = "") -> "Iterator[Parsed]":
+        """Turn `pdftotext -layout` output of a bank statement into Parsed rows (posted=True), plus one
+        kind='statement' row for the closing balance where the statement has one. Raise ValueError if it isn't yours."""
+        raise ValueError(f"{self.name}: PDF import not implemented")
+
+    def sniff_csv(self, header: list[str]) -> bool:
+        try:
+            next(iter(self.csv_rows(header, [])), None); return True
+        except (ValueError, StopIteration):
+            return False
+
     # ---- dispatch -------------------------------------------------------------------------
     def parse(self, e: Email) -> Parsed | None:
         for rx, handler in self._compiled:

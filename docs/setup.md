@@ -31,11 +31,22 @@ Config lives in `~/.alertledger/config.json` (mode 600). `sync_interval_min` and
 ## 4. Viewing from anywhere
 Don't expose the port to the internet. Install [Tailscale](https://tailscale.com) on the box and your phone/laptop — same URL works from any network, encrypted, no port-forwarding, free for personal use.
 
-## Backfill from a CSV
-Alerts only exist from the day you turned them on. For history, export activity as CSV from the bank (one account at a time)
-and import it — Data tab → *Import a bank CSV*, or `./alertledger import chase_2637 activity.csv` (account ids are listed
-by `./alertledger status`). Imported rows are the bank's posted data: they replace pending alert rows for the same charge and
-carry the bank's category where it provides one (Chase does).
+## Backfill from statements / exports
+Alerts only exist from the day you turned them on. For history, drop the bank's files on the Data tab (or
+`./alertledger import file1.pdf file2.csv …`):
+
+| Bank | File | Account detection |
+|---|---|---|
+| Chase | statement **PDF** (`20260821-statements-2637-.pdf`) — card or checking | from the filename |
+| Chase | activity **CSV** (`Chase2637_Activity_….CSV`) | from the filename |
+| Bank of America | activity CSV | picked in the UI / `--account` (file doesn't say) |
+
+Imported rows are the bank's *posted* data: they replace pending alert rows for the same charge, carry the bank's category
+where it provides one, and card statements also record the closing balance. **The same file twice is ignored** (file hash),
+and identical rows from overlapping files dedupe.
+
+PDF import needs `pdftotext` (poppler): macOS `brew install poppler`, Raspberry Pi / Debian `sudo apt install poppler-utils`.
+Without it, CSV import still works.
 
 ## Budgets
 On the Spending tab, each category card has **+ budget**. Set a monthly amount (or take the 3-month average it suggests).

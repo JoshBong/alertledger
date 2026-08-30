@@ -2,6 +2,7 @@ import { el, clear } from '../lib/dom.js';
 
 const TABS = [
   { id: 'spending', label: 'Spending', glyph: '◔' },
+  { id: 'budget', label: 'Budget', glyph: '◫' },
   { id: 'transactions', label: 'Transactions', glyph: '≡' },
   { id: 'trends', label: 'Trends', glyph: '⟋' },
   { id: 'data', label: 'Data', glyph: '⚙' },

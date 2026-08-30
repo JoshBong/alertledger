@@ -15,8 +15,9 @@ statement-ready mail ──┘                                                  
 - **Banks:** Chase, Bank of America. Adding one is a ~40-line subclass → [docs/parsers.md](docs/parsers.md)
 - **Dashboard:** phone-first, four tabs — **Spending** (one month, donut by category or account, tap to drill), **Transactions**
   (filter/search), **Trends** (12 months, recurring charges, category month-over-month), **Data** (sync, accounts, CSV import, checksum).
-- **Backfill:** import the bank's CSV export per account; posted rows replace the alert-time ones.
-- **Zero dependencies.** Python stdlib only; SQLite on disk; one file of HTML.
+- **Backfill:** drag in Chase statement PDFs or bank CSV exports; posted rows replace the alert-time ones, the same file twice is ignored.
+- **Budgets:** per category, with a "where you should be today" tick and month-end pace.
+- **Zero dependencies.** Python stdlib only; SQLite on disk. (PDF import shells out to `pdftotext` if installed.)
 
 ## Commands
 ```
@@ -29,7 +30,7 @@ statement-ready mail ──┘                                                  
 ./alertledger config set port 8090            also: sync_interval_min 30 · default_checking.Chase 1234
 ./alertledger config gmail        re-enter the Gmail login (tested before saving)
 ./alertledger sync [--full]       pull mail now from the terminal (--full = whole mailbox)
-./alertledger import <account_id> <file.csv>   backfill from a bank CSV export
+./alertledger import <files…>     backfill from statement PDFs / CSV exports (account auto-detected)
 ./alertledger serve               run in the foreground (what the service runs)
 ./alertledger install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
 ```

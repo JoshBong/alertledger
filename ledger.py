@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS statements (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, statement_date TEXT NOT NULL, balance REAL NOT NULL, due_date TEXT);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS budgets (category TEXT PRIMARY KEY, amount REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS imports (sha TEXT PRIMARY KEY, filename TEXT, account_id TEXT, imported_at TEXT, rows INTEGER);
 CREATE INDEX IF NOT EXISTS tx_date ON transactions(date);
 """
 
@@ -58,13 +59,25 @@ def record_posted(con, bank: str, account_id_: str, p: Parsed) -> str:
     return "upgraded" if pend else "new"
 
 
+def upsert_statement(con, account_id_: str, statement_date: str, balance: float, due: str | None, authoritative: bool):
+    """One row per statement cycle. A statement email arrives a day after the PDF's closing date, so anything within
+    3 days is the same statement; the PDF (authoritative) wins on date, otherwise keep the earliest date seen."""
+    near = con.execute("SELECT id, statement_date, due_date FROM statements WHERE account_id=? AND ABS(julianday(statement_date)-julianday(?))<=3",
+                       (account_id_, statement_date)).fetchone()
+    if near:
+        keep_date = statement_date if authoritative else min(near["statement_date"], statement_date)
+        con.execute("DELETE FROM statements WHERE id=?", (near["id"],))
+        due = due or near["due_date"]
+        statement_date = keep_date
+    con.execute("INSERT INTO statements VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET balance=excluded.balance, due_date=COALESCE(excluded.due_date, due_date)",
+                (f"{account_id_}:{statement_date}", account_id_, statement_date, balance, due))
+
+
 def record(con, bank: str, p: Parsed, subject: str) -> str:
     """Write a Parsed to the ledger. Returns 'txn' | 'statement'."""
     aid = ensure_account(con, bank, p.last4)
     if p.kind == "statement":
-        sd = p.date.isoformat()
-        con.execute("INSERT INTO statements VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET balance=excluded.balance, due_date=excluded.due_date",
-                    (f"{aid}:{sd}", aid, sd, p.balance, p.due.isoformat() if p.due else None))
+        upsert_statement(con, aid, p.date.isoformat(), p.balance, p.due.isoformat() if p.due else None, authoritative=False)
         return "statement"
     d = p.date.isoformat()
     amt = p.signed_amount
@@ -97,3 +110,16 @@ def set_budget(con, category: str, amount: float | None):
     else:
         con.execute("INSERT INTO budgets VALUES (?,?) ON CONFLICT(category) DO UPDATE SET amount=excluded.amount", (category, float(amount)))
     con.commit()
+
+
+def seen_file(con, sha: str):
+    return con.execute("SELECT filename, imported_at FROM imports WHERE sha=?", (sha,)).fetchone()
+
+
+def remember_file(con, sha: str, filename: str, account_id_: str, rows: int):
+    con.execute("INSERT OR REPLACE INTO imports VALUES (?,?,?,?,?)", (sha, filename, account_id_, date.today().isoformat(), rows))
+    con.commit()
+
+
+def record_statement(con, account_id_: str, p: Parsed):
+    upsert_statement(con, account_id_, p.date.isoformat(), p.balance, p.due.isoformat() if p.due else None, authoritative=True)

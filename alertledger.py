@@ -3,7 +3,7 @@
 
   python3 alertledger.py setup       interactive: Gmail login (tested), accounts, port
   python3 alertledger.py sync        pull mail now (--full = whole mailbox)
-  python3 alertledger.py import <account_id> <file.csv>   backfill from a bank CSV export (see status for account ids)
+  python3 alertledger.py import <files…>   backfill from bank CSV exports or statement PDFs (account auto-detected; --account to force)
   python3 alertledger.py serve       run forever: sync every N minutes + dashboard on :PORT
   python3 alertledger.py install     register `serve` as a system service (systemd / launchd) and start it
   python3 alertledger.py uninstall
@@ -22,6 +22,7 @@ import getpass
 import json
 import os
 import plistlib
+import re
 import subprocess
 import sys
 import threading
@@ -65,24 +66,82 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
     return counts
 
 
-# ---------------------------------------------------------------- csv import
-def import_csv(con, account_id_: str, text: str) -> dict:
-    import csv
-    import io
-    acct = con.execute("SELECT * FROM accounts WHERE id=?", (account_id_,)).fetchone()
+# ---------------------------------------------------------------- file import (csv / pdf)
+def pdf_to_text(data: bytes) -> str:
+    import shutil, tempfile
+    if not shutil.which("pdftotext"):
+        raise ValueError("PDF import needs pdftotext (poppler): macOS `brew install poppler` · Debian/Pi `sudo apt install poppler-utils`")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+        f.write(data); path = f.name
+    try:
+        r = subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise ValueError("pdftotext failed: " + r.stderr.strip()[:200])
+        return r.stdout
+    finally:
+        os.unlink(path)
+
+
+def detect_account(con, filename: str, text: str, bank=None):
+    """Account id from the filename (Chase: 20260821-statements-2637-.pdf / Chase2637_Activity.csv) or the text; else None."""
+    accts = [dict(r) for r in con.execute("SELECT * FROM accounts")]
+    if bank:
+        accts = [a for a in accts if a["institution"] == bank.name]
+    for m in re.finditer(r"(?<!\d)(\d{4})(?!\d)", filename):
+        for a in accts:
+            if a["last_four"] == m.group(1):
+                return a["id"]
+    for pat in (r"\(\s*\.{3}\s*(\d{4})\s*\)", r"Account Number:\s*(?:X{4}\s*){3}(\d{4})", r"ending in\s*(\d{4})"):
+        for m in re.finditer(pat, text, re.I):
+            for a in accts:
+                if a["last_four"] == m.group(1):
+                    return a["id"]
+    return accts[0]["id"] if len(accts) == 1 else None
+
+
+def import_file(con, filename: str, data: bytes, account_id_: str | None = None) -> dict:
+    import csv, hashlib, io
+    sha = hashlib.sha256(data).hexdigest()
+    prev = ledger.seen_file(con, sha)
+    if prev:
+        return {"skipped": True, "reason": f"already imported as {prev['filename']} on {prev['imported_at']}", "new": 0, "upgraded": 0, "dup": 0}
+    is_pdf = data[:5] == b"%PDF-" or filename.lower().endswith(".pdf")
+    banks = list(parsers._REGISTRY.values())
+    if is_pdf:
+        text = pdf_to_text(data)
+        bank, rows_iter = None, None
+        for b in banks:
+            try:
+                rows_iter = list(b.pdf_rows(text, filename)); bank = b; break
+            except ValueError:
+                continue
+        if not bank:
+            raise ValueError("no parser recognised this PDF (Chase card + checking statements are supported)")
+    else:
+        text = data.decode("utf-8", errors="replace").lstrip("\ufeff")
+        rows = list(csv.reader(io.StringIO(text)))
+        if not rows:
+            raise ValueError("empty file")
+        bank = next((b for b in banks if b.sniff_csv(rows[0])), None)
+        if not bank:   # BofA headers sit below a preamble
+            bank = next((b for b in banks if any(b.sniff_csv(r) for r in rows[:12])), None)
+        if not bank:
+            raise ValueError("no parser recognised this CSV header")
+        rows_iter = list(bank.csv_rows(rows[0], rows[1:]))
+    acct = account_id_ or detect_account(con, filename, text, bank)
     if not acct:
-        ids = [r["id"] for r in con.execute("SELECT id FROM accounts ORDER BY id")]
-        raise ValueError(f"unknown account {account_id_!r}. known: {', '.join(ids) or 'none yet — sync first'}")
-    bank = next((p for p in parsers._REGISTRY.values() if p.name == acct["institution"]), None)
-    if not bank:
-        raise ValueError(f"no parser for {acct['institution']}")
-    rows = list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))
-    if not rows:
-        raise ValueError("empty file")
-    counts = {"new": 0, "upgraded": 0, "dup": 0}
-    for p in bank.csv_rows(rows[0], rows[1:]):
-        counts[ledger.record_posted(con, bank.name, account_id_, p)] += 1
+        ids = [r["id"] for r in con.execute("SELECT id FROM accounts WHERE institution=?", (bank.name,))]
+        raise ValueError(f"which {bank.name} account is this? choose one of: {', '.join(ids)}")
+    if not con.execute("SELECT 1 FROM accounts WHERE id=?", (acct,)).fetchone():
+        raise ValueError(f"unknown account {acct}")
+    counts = {"new": 0, "upgraded": 0, "dup": 0, "statements": 0, "account": acct, "bank": bank.name, "skipped": False}
+    for p in rows_iter:
+        if p.kind == "statement":
+            ledger.record_statement(con, acct, p); counts["statements"] += 1
+        else:
+            counts[ledger.record_posted(con, bank.name, acct, p)] += 1
     con.commit()
+    ledger.remember_file(con, sha, filename, acct, counts["new"])
     return counts
 
 
@@ -123,12 +182,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path.startswith("/api/import"):
-            from urllib.parse import parse_qs, urlparse
-            acct = parse_qs(urlparse(self.path).query).get("account", [""])[0]
-            body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8", errors="replace")
+            from urllib.parse import parse_qs, urlparse, unquote
+            q = parse_qs(urlparse(self.path).query)
+            acct = q.get("account", [""])[0] or None
+            name = unquote(q.get("name", ["upload"])[0])
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             with self.lock:
                 try:
-                    self._send(json.dumps(import_csv(self.con, acct, body)).encode(), "application/json")
+                    self._send(json.dumps(import_file(self.con, name, body, acct)).encode(), "application/json")
                 except Exception as ex:
                     self._send(json.dumps({"error": str(ex)}).encode(), "application/json", 400)
         elif self.path == "/api/budget":
@@ -426,6 +487,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update", "import"])
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--account", help="account id for import when it can't be detected")
     ap.add_argument("rest", nargs="*")
     a = ap.parse_args()
     if a.cmd == "setup":
@@ -452,6 +514,11 @@ if __name__ == "__main__":
     elif a.cmd == "update":
         update()
     elif a.cmd == "import":
-        if len(a.rest) != 2:
-            raise SystemExit("usage: import <account_id> <file.csv>")
-        print(import_csv(ledger.connect(str(config.DB)), a.rest[0], Path(a.rest[1]).read_text(errors="replace")))
+        if not a.rest:
+            raise SystemExit("usage: import <file.csv|file.pdf> [...]   (add --account <id> if the account can't be detected)")
+        con = ledger.connect(str(config.DB))
+        for f in a.rest:
+            try:
+                print(Path(f).name, "→", import_file(con, Path(f).name, Path(f).read_bytes(), a.account))
+            except Exception as ex:
+                print(Path(f).name, "→ FAILED:", ex)

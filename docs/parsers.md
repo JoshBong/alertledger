@@ -67,3 +67,17 @@ The account is chosen by the user at import time (`./alertledger import chase_26
 CSVs are per account and don't name it. `posted=True` rows replace any pending alert row with the same amount within
 3 days, and their `category` (if the bank supplies one) is mapped through `categories.BANK_MAP`.
 Skip the bank's own-account payments/transfers in `csv_rows` — they aren't spending.
+
+## Statement PDFs (`pdf_rows`)
+Same idea for PDF statements: the app runs `pdftotext -layout` and hands you the text plus the filename.
+```python
+    def pdf_rows(self, text, filename=""):
+        m = re.search(r"Opening/Closing Date\s+(\d{2})/(\d{2})/(\d{2})\s*-\s*(\d{2})/(\d{2})/(\d{2})", text)
+        if not m: raise ValueError("not a <Bank> statement")
+        ...
+        yield Parsed("purchase", amt, desc, None, d, posted=True)
+        yield Parsed("statement", date=closing, balance=new_balance)   # optional: closing balance for the checksum
+```
+Rows in `-layout` text are aligned columns, so a regex like `^\s*(\d{2})/(\d{2})\s+(.+?)\s{2,}(-?[\d,]+\.\d{2})` works
+for most banks. Statement dates lack a year — derive it from the statement period. Skip own-account payments, and
+skip foreign-exchange continuation lines. See `parsers/chase.py` for a complete card + checking implementation.
