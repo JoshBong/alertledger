@@ -54,7 +54,7 @@ export function SpendingView({ rerender, goto }) {
     MonthNav({ months: store.months, month, onChange: m => { store.state.month = m; rerender(); } }),
     el('div', { class: 'row', style: { justifyContent: 'center', marginBottom: '6px' } },
       Segmented({ options: [{ value: 'cat', label: 'by category' }, { value: 'acct', label: 'by account' }], value: mode, onChange: v => { store.state.mode = v; rerender(); } })),
-    Donut({ items: shaped.filter(i => i.value > 0), total, onSelect: toggle,
+    Donut({ items: shaped.filter(i => i.value > 0), total, onSelect: toggle, selected: expanded,
       title: net < 0 ? '+' + money0(-net) : money0(net), titleClass: net < 0 ? 'down' : '',
       subtitle: monthLabel(month) }),
     CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded,
