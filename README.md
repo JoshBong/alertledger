@@ -40,7 +40,12 @@ Other banks: add a sender to `SENDERS`, a name to `BANKS`, and (if needed) a reg
    ```
    `default_checking` = last-4 of the checking account Zelle mails belong to when they don't say.
 5. `cp rules.example.toml rules.toml` and edit — alerts carry no bank category, so this is your categorizer.
-6. `python3 sync.py --full` once, then `python3 sync.py --install-launchd` (macOS, daily 08:00, last 14 days). Linux: cron it.
+6. `python3 sync.py --full` once, then `python3 sync.py --install-launchd` (macOS, daily 08:00, last 14 days; `--uninstall-launchd` to stop) or `--install-cron` (Linux / Raspberry Pi).
+   The machine has to be awake for the job to run; launchd catches up on next wake.
+
+## Dashboard
+`sync.py` regenerates `~/.alertledger/dashboard.html` after every run — a single self-contained file (vanilla JS + SVG, no deps).
+`open ~/.alertledger/dashboard.html` on a Mac; on a Pi/server, `python3 -m http.server 8000 -d ~/.alertledger` and visit `http://host:8000/dashboard.html`.
 
 ## Reports
 ```
