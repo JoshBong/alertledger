@@ -1,26 +1,43 @@
-# Copy to rules.toml. Category overrides — first match wins. Regex, case-insensitive, matched against description then counterparty.
-# ignore = true drops the row from spend reports (payments/transfers between your own accounts).
+# Copy to rules.toml. Maps merchants → categories (see categories.py for the list). First match wins.
+# Regex, case-insensitive, matched against the merchant/description. `ignore = true` drops own-account payments from spend.
+# Anything unmatched is "Other" — the dashboard tells you how many, so you know when to add rules.
 
 [[rule]]
-pattern = "AUTOMATIC PAYMENT|ONLINE PAYMENT|PAYMENT THANK YOU"
+pattern = "AUTOMATIC PAYMENT|ONLINE PAYMENT|PAYMENT THANK YOU|PAYMENT - THANK"
 ignore = true
 
 [[rule]]
-pattern = "GOOGLE \\*|NETFLIX|SPOTIFY|APPLE\\.COM/BILL"
-category = "subscriptions"
-
-[[rule]]
-pattern = "AIRBNB|Booking\\.com|Trip\\.com|VIATOR|UBER|LYFT|MTA\\*"
-category = "travel"
-
-[[rule]]
-pattern = "SQ \\*|TST\\*|DOORDASH|UBER EATS"
-category = "dining"
-
-[[rule]]
-pattern = "WHOLEFDS|TRADER JOE|H MART|CARGILLS"
-category = "groceries"
-
-[[rule]]
 pattern = "^Zelle to "
-category = "people"
+category = "People"
+
+[[rule]]
+pattern = "GOOGLE \\*|NETFLIX|SPOTIFY|APPLE\\.COM/BILL|HULU|YOUTUBE|ICLOUD|OPENAI|ANTHROPIC|GITHUB|WORKSPACE|RESEND|VERCEL|MEMBERSHIP"
+category = "Bills & Subscriptions"
+
+[[rule]]
+pattern = "VERIZON|T-MOBILE|AT&T|COMCAST|XFINITY|CON ED|NATIONAL GRID|ELECTRIC|INTERNET|INSURANCE"
+category = "Bills & Subscriptions"
+
+[[rule]]
+pattern = "WHOLEFDS|WHOLE FOODS|TRADER JOE|H MART|HMART|WEGMANS|STOP & SHOP|KROGER|SAFEWAY|COSTCO|CARGILLS|FOOD CITY|FAMILYMART|7-ELEVEN|SEVEN-ELEVEN|GS25|CU |E-MART|GLOMARK"
+category = "Groceries"
+
+[[rule]]
+pattern = "UBER|LYFT|MTA|AMTRAK|NJ TRANSIT|GRAB|TAXI|BOLT|LIME|CITI BIKE|PARKING|SHELL|EXXON|CHEVRON|BP |GAS"
+category = "Transport"
+
+[[rule]]
+pattern = "AIRBNB|BOOKING\\.COM|PARTNERS ON BOOKING|TRIP\\.COM|AGODA|VIATOR|EXPEDIA|HOTEL|HOSTEL|AIRLINES|AIRASIA|JETBLUE|DELTA|UNITED|BATIK|SRILANKAN|FLIX"
+category = "Travel"
+
+[[rule]]
+pattern = "SQ \\*|TST\\*|DOORDASH|UBER EATS|GRUBHUB|SEAMLESS|STARBUCKS|DUNKIN|CAFE|COFFEE|RAMEN|PIZZA|SUSHI|RESTAURANT|BAKERY|KITCHEN|GRILL|DINER|BAR |CRUST"
+category = "Food & Dining"
+
+[[rule]]
+pattern = "CVS|WALGREENS|RITE AID|PHARMACY|DENTAL|MEDICAL|CLINIC|OLIVE YOUNG|INNISFREE|SPA "
+category = "Health"
+
+[[rule]]
+pattern = "AMAZON|AMZN|TARGET|WALMART|BEST BUY|APPLE STORE|NIKE|UNIQLO|GU |UGG|DECATHLON|EPIC GAMES|STEAM|DICE\\.FM|KARAOKE|TICKET|CINEMA|AMC"
+category = "Shopping"

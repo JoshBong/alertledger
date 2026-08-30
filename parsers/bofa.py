@@ -52,3 +52,32 @@ class BofA(BankParser):
         amt = self.amount(e.body, "Check amount")
         return Parsed("deposit", amt, "Check deposit", self.last4(e.body),
                       self.date(e.body, e.received, "Credit posts on")) if amt else None
+
+    # BofA → account → Download → CSV. File starts with a summary block, then: Date,Description,Amount,Running Bal.
+    def csv_rows(self, header, rows):
+        rows = list(rows)
+        h = [c.strip().lower() for c in header]
+        if "running bal." not in h and "running bal" not in h:
+            # header may be further down after the preamble
+            for n, r in enumerate(rows):
+                if [c.strip().lower() for c in r][:3] == ["date", "description", "amount"]:
+                    h, rows = [c.strip().lower() for c in r], rows[n + 1:]
+                    break
+            else:
+                raise ValueError("not a BofA activity CSV (no Date,Description,Amount,Running Bal. header)")
+        di, de, am = h.index("date"), h.index("description"), h.index("amount")
+        for r in rows:
+            if len(r) <= am or not r[am].strip():
+                continue
+            amt = float(r[am].replace(",", "").replace('"', ""))
+            desc = r[de].strip()
+            up = desc.upper()
+            if "ONLINE PAYMENT" in up or "PAYMENT - THANK YOU" in up or "TRANSFER" in up and "ZELLE" not in up:
+                continue
+            if amt > 0:
+                kind, merchant = ("zelle_in", "Zelle from " + up.split("FROM", 1)[-1].split(" CONF")[0].strip().title()) if "ZELLE" in up else ("deposit", desc)
+            elif "ZELLE" in up:
+                kind, merchant = "zelle_out", "Zelle to " + up.split(" TO ", 1)[-1].split(" CONF")[0].strip().title()
+            else:
+                kind, merchant = "purchase", desc
+            yield Parsed(kind, abs(amt), merchant, None, self.date(r[di], None), posted=True)

@@ -10,6 +10,7 @@ import tomllib
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
+import categories
 import config
 import ledger
 
@@ -29,8 +30,8 @@ def classify(row, rules):
     """→ (category, ignore)"""
     for r in rules:
         if r["_re"].search(row["description"] or "") or r["_re"].search(row["counterparty"] or ""):
-            return r.get("category") or row["category"] or "uncategorized", bool(r.get("ignore"))
-    return row["category"] or "uncategorized", (row["type"] in SKIP_TYPES)
+            return categories.normalize(r.get("category") or row["category"]), bool(r.get("ignore"))
+    return categories.normalize(row["category"]), (row["type"] in SKIP_TYPES)
 
 
 def spend_rows(con, rules, month=None):

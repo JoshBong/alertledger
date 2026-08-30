@@ -105,3 +105,43 @@ class RegistryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CsvTests(unittest.TestCase):
+    def rows(self, text):
+        import csv, io
+        r = list(csv.reader(io.StringIO(text)))
+        return r[0], r[1:]
+
+    def test_chase_card_csv(self):
+        h, rows = self.rows("Transaction Date,Post Date,Description,Category,Type,Amount,Memo\n"
+                            "08/03/2026,08/04/2026,SQ *RAMEN ISHIDA,Food & Drink,Sale,-45.73,\n"
+                            "08/10/2026,08/11/2026,AMAZON.COM,Shopping,Return,12.00,\n"
+                            "08/18/2026,08/18/2026,AUTOMATIC PAYMENT - THANK,,Payment,663.16,\n")
+        out = list(parsers.for_sender(CHASE).csv_rows(h, rows))
+        self.assertEqual([(p.kind, p.amount, p.merchant, p.category, p.posted) for p in out],
+                         [("purchase", 45.73, "SQ *RAMEN ISHIDA", "Food & Drink", True), ("refund", 12.0, "AMAZON.COM", "Shopping", True)])
+        self.assertEqual(out[0].date, date(2026, 8, 4))
+
+    def test_chase_checking_csv(self):
+        h, rows = self.rows("Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #\n"
+                            "DEBIT,08/05/2026,BLUE BOTTLE COFFEE NEW YORK NY,-8.50,DEBIT_CARD,991.50,\n"
+                            "CREDIT,08/06/2026,Zelle payment from TYRONE THA 30605351352,16.00,QUICKPAY_CREDIT,1007.50,\n"
+                            "DEBIT,08/07/2026,Payment to Chase card ending in 2637,-663.16,ACCT_XFER,344.34,\n")
+        out = list(parsers.for_sender(CHASE).csv_rows(h, rows))
+        self.assertEqual([(p.kind, p.amount) for p in out], [("purchase", 8.5), ("deposit", 16.0)])
+
+    def test_bofa_csv_with_preamble(self):
+        text = ('Description,,Summary Amt.\nBeginning balance as of 07/01/2026,,"1,000.00"\n,,\n'
+                "Date,Description,Amount,Running Bal.\n"
+                '07/17/2026,"Zelle payment to CONNECTICUT TAEKWONDO ACADEMY LLC Conf# yueig8wz4",-75.00,"925.00"\n'
+                '07/20/2026,"CHECKCARD 0719 STARBUCKS 800-782-7282 WA",-6.45,"918.55"\n'
+                '07/25/2026,"Online Banking transfer to SAV 4727",-100.00,"818.55"\n')
+        h, rows = self.rows(text)
+        out = list(parsers.for_sender(BOFA).csv_rows(h, rows))
+        self.assertEqual([(p.kind, p.amount, p.merchant) for p in out],
+                         [("zelle_out", 75.0, "Zelle to Connecticut Taekwondo Academy Llc"), ("purchase", 6.45, "CHECKCARD 0719 STARBUCKS 800-782-7282 WA")])
+
+    def test_wrong_csv_raises(self):
+        with self.assertRaises(ValueError):
+            list(parsers.for_sender(CHASE).csv_rows(["a", "b"], [["1", "2"]]))

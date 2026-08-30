@@ -13,8 +13,9 @@ statement-ready mail ──┘                                                  
 
 - **Install:** `git clone https://github.com/JoshBong/alertledger && cd alertledger && ./install.sh` → [docs/setup.md](docs/setup.md)
 - **Banks:** Chase, Bank of America. Adding one is a ~40-line subclass → [docs/parsers.md](docs/parsers.md)
-- **Dashboard:** monthly spend by card, categories, recurring charges (the subscriptions you forgot), per-statement
-  checksum (how much the alerts missed vs. the bank's balance), searchable transactions, **Sync now**.
+- **Dashboard:** phone-first, four tabs — **Spending** (one month, donut by category or account, tap to drill), **Transactions**
+  (filter/search), **Trends** (12 months, recurring charges, category month-over-month), **Data** (sync, accounts, CSV import, checksum).
+- **Backfill:** import the bank's CSV export per account; posted rows replace the alert-time ones.
 - **Zero dependencies.** Python stdlib only; SQLite on disk; one file of HTML.
 
 ## Commands
@@ -28,6 +29,7 @@ statement-ready mail ──┘                                                  
 ./alertledger config set port 8090            also: sync_interval_min 30 · default_checking.Chase 1234
 ./alertledger config gmail        re-enter the Gmail login (tested before saving)
 ./alertledger sync [--full]       pull mail now from the terminal (--full = whole mailbox)
+./alertledger import <account_id> <file.csv>   backfill from a bank CSV export
 ./alertledger serve               run in the foreground (what the service runs)
 ./alertledger install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
 ```

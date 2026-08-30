@@ -50,3 +50,20 @@ and the "is this spend or income" decision come from `kind`.
 
 Rule of thumb: **one handler per email shape, explicit `skip` for known noise, `None` for anything you can't read.**
 Silence is the bug; the failures file is the feature.
+
+## CSV imports (`csv_rows`)
+Each bank can also read its own activity-export CSV so users can backfill history and get the bank's *posted* amounts:
+
+```python
+    def csv_rows(self, header, rows):          # header: list[str]; rows: list[list[str]]
+        h = [c.strip().lower() for c in header]
+        if "transaction date" in h and "category" in h:   # sniff the layout — banks ship one per account type
+            ...
+            yield Parsed("purchase", abs(amt), desc, None, self.date(post_date, None), category=bank_cat, posted=True)
+        else:
+            raise ValueError("not a <Bank> activity CSV")
+```
+The account is chosen by the user at import time (`./alertledger import chase_2637 file.csv` or the Data tab), because bank
+CSVs are per account and don't name it. `posted=True` rows replace any pending alert row with the same amount within
+3 days, and their `category` (if the bank supplies one) is mapped through `categories.BANK_MAP`.
+Skip the bank's own-account payments/transfers in `csv_rows` — they aren't spending.

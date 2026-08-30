@@ -3,6 +3,7 @@
 
   python3 alertledger.py setup       interactive: Gmail login (tested), accounts, port
   python3 alertledger.py sync        pull mail now (--full = whole mailbox)
+  python3 alertledger.py import <account_id> <file.csv>   backfill from a bank CSV export (see status for account ids)
   python3 alertledger.py serve       run forever: sync every N minutes + dashboard on :PORT
   python3 alertledger.py install     register `serve` as a system service (systemd / launchd) and start it
   python3 alertledger.py uninstall
@@ -64,6 +65,27 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
     return counts
 
 
+# ---------------------------------------------------------------- csv import
+def import_csv(con, account_id_: str, text: str) -> dict:
+    import csv
+    import io
+    acct = con.execute("SELECT * FROM accounts WHERE id=?", (account_id_,)).fetchone()
+    if not acct:
+        ids = [r["id"] for r in con.execute("SELECT id FROM accounts ORDER BY id")]
+        raise ValueError(f"unknown account {account_id_!r}. known: {', '.join(ids) or 'none yet — sync first'}")
+    bank = next((p for p in parsers._REGISTRY.values() if p.name == acct["institution"]), None)
+    if not bank:
+        raise ValueError(f"no parser for {acct['institution']}")
+    rows = list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))
+    if not rows:
+        raise ValueError("empty file")
+    counts = {"new": 0, "upgraded": 0, "dup": 0}
+    for p in bank.csv_rows(rows[0], rows[1:]):
+        counts[ledger.record_posted(con, bank.name, account_id_, p)] += 1
+    con.commit()
+    return counts
+
+
 # ---------------------------------------------------------------- serve
 class Handler(BaseHTTPRequestHandler):
     con = None
@@ -74,20 +96,42 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _send(self, body: bytes, ctype="text/html; charset=utf-8", code=200):
-        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(body))); self.end_headers()
+        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache"); self.end_headers()
         self.wfile.write(body)
 
+    WEB = HERE / "web"
+    TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}
+
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = self.path.split("?", 1)[0]
+        if path in ("/", "/index.html"):
+            self._send((self.WEB / "index.html").read_bytes())
+        elif path == "/api/data":
             import dashboard
-            self._send(dashboard.render(self.con).encode())
-        elif self.path == "/api/status":
+            self._send(json.dumps(dashboard.data(self.con), separators=(",", ":")).encode(), "application/json")
+        elif path.startswith("/static/"):
+            f = (self.WEB / path[len("/static/"):]).resolve()
+            if self.WEB.resolve() in f.parents and f.is_file():
+                self._send(f.read_bytes(), self.TYPES.get(f.suffix, "application/octet-stream"))
+            else:
+                self._send(b"not found", "text/plain", 404)
+        elif path == "/api/status":
             self._send(json.dumps({"last_sync": ledger.get_meta(self.con, "last_sync"), "counts": json.loads(ledger.get_meta(self.con, "last_counts", "{}"))}).encode(), "application/json")
         else:
             self._send(b"not found", "text/plain", 404)
 
     def do_POST(self):
-        if self.path == "/api/sync":
+        if self.path.startswith("/api/import"):
+            from urllib.parse import parse_qs, urlparse
+            acct = parse_qs(urlparse(self.path).query).get("account", [""])[0]
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8", errors="replace")
+            with self.lock:
+                try:
+                    self._send(json.dumps(import_csv(self.con, acct, body)).encode(), "application/json")
+                except Exception as ex:
+                    self._send(json.dumps({"error": str(ex)}).encode(), "application/json", 400)
+        elif self.path == "/api/sync":
             with self.lock:
                 try:
                     counts = sync(self.con, self.cfg)
@@ -372,7 +416,7 @@ def uninstall():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update"])
+    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update", "import"])
     ap.add_argument("--full", action="store_true")
     ap.add_argument("rest", nargs="*")
     a = ap.parse_args()
@@ -399,3 +443,7 @@ if __name__ == "__main__":
         show_config(a.rest)
     elif a.cmd == "update":
         update()
+    elif a.cmd == "import":
+        if len(a.rest) != 2:
+            raise SystemExit("usage: import <account_id> <file.csv>")
+        print(import_csv(ledger.connect(str(config.DB)), a.rest[0], Path(a.rest[1]).read_text(errors="replace")))

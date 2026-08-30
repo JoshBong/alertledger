@@ -31,8 +31,15 @@ Config lives in `~/.alertledger/config.json` (mode 600). `sync_interval_min` and
 ## 4. Viewing from anywhere
 Don't expose the port to the internet. Install [Tailscale](https://tailscale.com) on the box and your phone/laptop — same URL works from any network, encrypted, no port-forwarding, free for personal use.
 
+## Backfill from a CSV
+Alerts only exist from the day you turned them on. For history, export activity as CSV from the bank (one account at a time)
+and import it — Data tab → *Import a bank CSV*, or `./alertledger import chase_2637 activity.csv` (account ids are listed
+by `./alertledger status`). Imported rows are the bank's posted data: they replace pending alert rows for the same charge and
+carry the bank's category where it provides one (Chase does).
+
 ## Categories
-`rules.toml` (copied from `rules.example.toml` on setup) maps merchant regexes → categories; `ignore = true` drops own-account payments from spend. Alerts carry no category from the bank, so this file is the categorizer.
+The fixed set is in `categories.py`: Food & Dining · Groceries · Shopping · Travel · Transport · Bills & Subscriptions · Health · People · Other.
+`rules.toml` (copied from `rules.example.toml` on setup) maps merchant regexes into them; `ignore = true` drops own-account payments from spend. The Spending tab shows how many transactions fell into Other, so you know when to add a rule.
 
 ## Day-to-day commands
 ```

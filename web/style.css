@@ -1,0 +1,108 @@
+/* ---- tokens ------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --bg: #f6f6f4; --surface: #fcfcfb; --line: #e4e3df;
+  --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8984;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --gray: #9a9994;
+  --good: #0ca30c; --bad: #d03b3b;
+  --radius: 12px; --pad: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --line: #2e2e2c;
+    --ink: #fff; --ink-2: #c3c2b7; --ink-3: #7e7d77;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --gray: #6f6e69;
+  }
+}
+
+/* ---- base --------------------------------------------------------------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+button, select, input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+button { cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+code { font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.wrap { max-width: 960px; margin: 0 auto; padding: 12px 14px 84px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+.muted { color: var(--ink-3); font-size: 13px; }
+.empty { color: var(--ink-3); text-align: center; padding: 24px; }
+.up { color: var(--bad); } .down { color: var(--good); }
+.num { font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--gray)); display: inline-block; flex: 0 0 auto; }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--pad); margin-bottom: 12px; }
+section.panel > h3 { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+section.panel > h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+@media (min-width: 700px) { .wrap { padding: 16px 24px 40px; } }
+
+/* ---- nav (bottom tabs on phone, top bar on desktop) --------------------- */
+#nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); z-index: 5; padding-bottom: env(safe-area-inset-bottom); }
+#nav .brand { display: none; }
+#nav a { flex: 1; text-align: center; padding: 10px 4px 8px; font-size: 12px; color: var(--ink-3); text-decoration: none; }
+#nav a.on { color: var(--ink); font-weight: 600; }
+#nav a .glyph { display: block; font-size: 18px; }
+@media (min-width: 700px) {
+  #nav { position: sticky; top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid var(--line); justify-content: flex-start; gap: 4px; padding: 6px 16px; }
+  #nav .brand { display: block; align-self: center; margin-right: 12px; font-weight: 700; }
+  #nav a { flex: 0 0 auto; padding: 8px 14px; font-size: 14px; border-radius: 8px; }
+  #nav a.on { background: var(--bg); }
+  #nav a .glyph { display: none; }
+}
+
+/* ---- month nav / segmented ---------------------------------------------- */
+.month-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 14px; }
+.month-nav h2 { margin: 0; font-size: 18px; min-width: 150px; text-align: center; }
+.month-nav button { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 14px; background: transparent; color: var(--ink-2); }
+.seg button.on { background: var(--ink); color: var(--bg); }
+
+/* ---- donut -------------------------------------------------------------- */
+.donut { position: relative; width: min(300px, 78vw); margin: 8px auto 18px; }
+.donut svg { width: 100%; height: auto; display: block; }
+.donut path { cursor: pointer; transition: opacity .15s; }
+.donut path:hover { opacity: .8; }
+.donut .center { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; text-align: center; pointer-events: none; }
+.donut .center .big { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+.donut .center .sub { color: var(--ink-2); font-size: 13px; }
+
+/* ---- category cards ----------------------------------------------------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--gray)); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; }
+.card:hover { border-color: var(--ink-3); border-left-color: var(--c, var(--gray)); }
+.card .name { font-weight: 600; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.card .value { font-size: 20px; font-weight: 700; }
+.card .sub { font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; margin-top: 2px; }
+
+/* ---- filters + transaction list ----------------------------------------- */
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+.filters input { grid-column: 1 / -1; }
+@media (min-width: 700px) { .filters { grid-template-columns: 2fr 1fr 1fr 1fr; } .filters input { grid-column: auto; } }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.list .day { padding: 6px 14px; font-size: 12px; color: var(--ink-3); background: var(--bg); border-bottom: 1px solid var(--line); }
+.tx { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+.tx:last-child { border-bottom: 0; }
+.tx .merchant { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx .meta { font-size: 12px; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
+.tx .meta .dot { width: 8px; height: 8px; }
+.tx .amount { font-weight: 600; text-align: right; }
+.tx .amount.in { color: var(--good); }
+
+/* ---- charts / tables ---------------------------------------------------- */
+.bars svg { width: 100%; height: auto; display: block; overflow: visible; }
+.bars text { fill: var(--ink-2); font-size: 11px; }
+.bars .grid line { stroke: var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--ink-3); }
+.legend span { display: inline-flex; gap: 5px; align-items: center; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
+th { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+td.n, th.n { text-align: right; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; }
+.kv b { color: var(--ink-2); font-weight: 500; }
+
+/* ---- tooltip ------------------------------------------------------------ */
+.tooltip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; display: none; z-index: 9; white-space: nowrap; }

@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Iterator
 
 AMOUNT = r"\$\s?([0-9,]+\.\d{2})"
 
@@ -36,6 +37,8 @@ class Parsed:
     date: date | None = None
     balance: float | None = None   # statements only
     due: date | None = None        # statements only
+    category: str | None = None    # bank-supplied category (CSV imports), mapped by categories.normalize
+    posted: bool = False           # True for CSV rows (bank's posted data), False for alert emails (authorization-time)
     extra: dict = field(default_factory=dict)
 
     SPEND = {"purchase", "zelle_out"}
@@ -69,6 +72,12 @@ class BankParser:
         if cls.name:
             _REGISTRY[cls.name] = cls()
             cls._compiled = [(re.compile(p, re.I), h) for p, h in cls.rules]
+
+    # ---- CSV export files ------------------------------------------------------------------
+    def csv_rows(self, header: list[str], rows) -> "Iterator[Parsed]":
+        """Turn rows of the bank's activity-export CSV into Parsed (posted=True). Override per bank; sniff `header`
+        because one bank ships different layouts per account type. Raise ValueError if the header isn't yours."""
+        raise ValueError(f"{self.name}: CSV import not implemented")
 
     # ---- dispatch -------------------------------------------------------------------------
     def parse(self, e: Email) -> Parsed | None:

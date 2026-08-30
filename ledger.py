@@ -38,6 +38,25 @@ def ensure_account(con, bank: str, last4: str | None) -> str:
     return aid
 
 
+def record_posted(con, bank: str, account_id_: str, p: Parsed) -> str:
+    """CSV row → posted transaction. A pending alert row for the same amount within 3 days is replaced (alerts fire at
+    authorization; the CSV is the bank's final word). Returns 'new' | 'upgraded' | 'dup'."""
+    d = p.date.isoformat()
+    amt = p.signed_amount
+    tid = "csv_" + hashlib.sha1(f"{account_id_}|{d}|{amt:.2f}|{p.merchant.lower()}".encode()).hexdigest()[:20]
+    if con.execute("SELECT 1 FROM transactions WHERE id=?", (tid,)).fetchone():
+        return "dup"
+    pend = con.execute("""SELECT id FROM transactions WHERE account_id=? AND status='pending' AND ABS(amount-?)<0.005
+                          AND ABS(julianday(date)-julianday(?))<=3 LIMIT 1""", (account_id_, amt, d)).fetchone()
+    if pend:
+        con.execute("DELETE FROM transactions WHERE id=?", (pend["id"],))
+    today = date.today().isoformat()
+    con.execute("INSERT INTO transactions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (tid, account_id_, d, p.merchant, amt, "posted", p.txn_type, p.category, p.merchant,
+                 json.dumps({"kind": p.kind, "source": "csv"}), today, today))
+    return "upgraded" if pend else "new"
+
+
 def record(con, bank: str, p: Parsed, subject: str) -> str:
     """Write a Parsed to the ledger. Returns 'txn' | 'statement'."""
     aid = ensure_account(con, bank, p.last4)
