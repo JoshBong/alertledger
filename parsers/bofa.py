@@ -89,7 +89,8 @@ class BofA(BankParser):
     # sections "Deposits and other additions" / "Withdrawals and other subtractions" (+ "- continued") / "Service fees",
     # rows "MM/DD/YY  DESC  ±AMOUNT". Card eStatements use a different layout (not yet supported).
     PDF_ROW = re.compile(r"^\s*(\d{2})/(\d{2})/(\d{2})\s+(.+?)\s{2,}(-?[\d,]+\.\d{2})\s*$")
-    OWN_ACCOUNT = re.compile(r"Online Banking transfer|Mobile Banking payment to CRD|payment to CRD \d{4}|transfer (?:to|from) (?:CHK|SAV|CRD)", re.I)
+    OWN_ACCOUNT = re.compile(r"Online Banking transfer|Mobile Banking payment to CRD|payment to (?:CRD|ACCT#) ?\d{4}|transfer (?:to|from) (?:CHK|SAV|CRD)|"
+                             r"DES:Ext Trnsfr|Fee Waiver", re.I)   # transfers between own accounts, card payments, $0 waiver lines
 
     def pdf_rows(self, text, filename=""):
         if not re.search(r"for [A-Z][a-z]+ \d{1,2}, \d{4} to [A-Z][a-z]+ \d{1,2}, \d{4}", text) or "Bank of America" not in text:
@@ -109,7 +110,7 @@ class BofA(BankParser):
             desc, amt = re.sub(r"\s+", " ", r.group(4)).strip(), float(r.group(5).replace(",", ""))
             d = date(2000 + int(r.group(3)), int(r.group(1)), int(r.group(2)))
             up = desc.upper()
-            if self.OWN_ACCOUNT.search(desc):
+            if self.OWN_ACCOUNT.search(desc) or amt == 0:
                 continue
             if section == "in":
                 if up.startswith("ZELLE PAYMENT FROM"):
@@ -132,6 +133,8 @@ class BofA(BankParser):
 
     @staticmethod
     def _merchant(desc: str) -> str:
+        if re.match(r"BKOFAMERICA MOBILE .*DEPOSIT", desc, re.I):
+            return "Mobile check deposit"
         m = re.sub(r"^(?:CHECKCARD|PURCHASE|PMNT SENT|PURCHASE REFUND)\s+\d{4}\s+", "", desc, flags=re.I)   # strip "CHECKCARD 1220 "
         m = re.sub(r"\s+\d{15,}.*$", "", m)                                                              # trailing reference numbers
         m = re.sub(r"\s+RECURRING$", "", m, flags=re.I)

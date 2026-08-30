@@ -212,8 +212,11 @@ Withdrawals and other subtractions - continued
 12/30/25       BKOFAMERICA ATM 12/30 #000007876 WITHDRWL DELANCEY AND LUDLO NEW YORK                         NY                          -20.00
 12/16/25       Zelle payment to NEW CITY DE SALON INC. for "haircut + tip"; Conf# vvaoa0qxh                                              -25.00
 12/18/25       Mobile Banking payment to CRD 4139 Confirmation# ycc3adxlj                                                               -469.42
+05/27/26    JPMorgan Chase DES:Ext Trnsfr ID:29363872206 INDN:JOSHUA HUANG                       CO                                   -2,500.00
+05/22/26    Online Scheduled Payment to ACCT# 4139 Confirmation# 2103086572                                                            -2,618.37
 Service fees
 12/29/25       CHECKCARD 1226 a.NordVPN Tokyo    74188895360000801307097                                                                  -3.67
+03/16/26       Preferred Rewards-ATM Wthdrwl Fee Waiver of $2.50                                                                          -0.00
 """
 
     def test_checking_estatement(self):
@@ -229,7 +232,7 @@ Service fees
             ("purchase", 20.0, "ATM withdrawal"),
             ("zelle_out", 25.0, "Zelle to NEW CITY DE SALON INC."),
             ("purchase", 3.67, "Fee: a.NordVPN Tokyo"),
-        ])                                                     # own-account transfer + card payment skipped
+        ])                                                     # own-account transfers, card payments, $0 waivers skipped
         self.assertEqual(rows[0].date, date(2025, 12, 15))
 
     def test_card_estatement_not_yet(self):
