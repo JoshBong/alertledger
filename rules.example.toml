@@ -1,0 +1,26 @@
+# Copy to rules.toml. Category overrides — first match wins. Regex, case-insensitive, matched against description then counterparty.
+# ignore = true drops the row from spend reports (payments/transfers between your own accounts).
+
+[[rule]]
+pattern = "AUTOMATIC PAYMENT|ONLINE PAYMENT|PAYMENT THANK YOU"
+ignore = true
+
+[[rule]]
+pattern = "GOOGLE \\*|NETFLIX|SPOTIFY|APPLE\\.COM/BILL"
+category = "subscriptions"
+
+[[rule]]
+pattern = "AIRBNB|Booking\\.com|Trip\\.com|VIATOR|UBER|LYFT|MTA\\*"
+category = "travel"
+
+[[rule]]
+pattern = "SQ \\*|TST\\*|DOORDASH|UBER EATS"
+category = "dining"
+
+[[rule]]
+pattern = "WHOLEFDS|TRADER JOE|H MART|CARGILLS"
+category = "groceries"
+
+[[rule]]
+pattern = "^Zelle to "
+category = "people"
