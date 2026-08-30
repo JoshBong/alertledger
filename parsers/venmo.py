@@ -14,7 +14,7 @@ class Venmo(BankParser):
         (r"^(.+?) paid (?:your? )?\$|^You received \$", "received"),      # "paid you $", "paid your $X request", "paid $X to your Venmo account"
         (r"transfer has been initiated|transfer .* complete|added money|Instant transfer", "skip"),   # moving your own money
         (r"requests? \$|Reminder:|wants to be friends|transaction history|verify|welcome|security|password|sign-in|"
-         r"payment method|profile|account|statement|changes to|commented on|declined|cancel|is now your friend|coming soon|paypal", "skip"),
+         r"payment method|profile|account|statement|changes to|commented on|declined|cancel|is now your friend|coming soon|paypal|invited you|expense activity|group", "skip"),
     ]
 
     def paid(self, e: Email):
