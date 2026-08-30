@@ -7,7 +7,7 @@ pattern = "AUTOMATIC PAYMENT|ONLINE PAYMENT|PAYMENT THANK YOU|PAYMENT - THANK"
 ignore = true
 
 [[rule]]
-pattern = "^Zelle to |^Venmo to "
+pattern = "^(Zelle|Venmo) (to|from) "
 category = "People"
 
 [[rule]]

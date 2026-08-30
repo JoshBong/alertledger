@@ -49,9 +49,9 @@ class Parsed:
         return -self.amount if self.kind in self.SPEND else self.amount
 
     @property
-    def txn_type(self) -> str:      # feeds reports: transfers are excluded from spend
+    def txn_type(self) -> str:      # feeds reports: transfers are excluded from spend; zelle_in nets against People
         return {"purchase": "card_payment", "refund": "card_payment", "zelle_out": "zelle",
-                "zelle_in": "transfer", "deposit": "transfer"}.get(self.kind, self.kind)
+                "zelle_in": "zelle", "deposit": "transfer"}.get(self.kind, self.kind)
 
 
 _REGISTRY: dict[str, "BankParser"] = {}

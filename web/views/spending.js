@@ -15,9 +15,9 @@ export function SpendingView({ rerender, goto }) {
   const prev = store.prevMonth(month);
   const key = store.keyFor(mode);
   const cur = sumBy(rows, key), old = prev ? sumBy(store.inMonth(prev), key) : {};
-  const total = Object.values(cur).reduce((a, b) => a + b, 0);
+  const total = Math.max(0, Object.values(cur).reduce((a, b) => a + b, 0));
 
-  let items = Object.entries(cur).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  let items = Object.entries(cur).filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
   if (mode === 'cat' && items.length > MAX_SLICES) {                       // fold the tail into Other
     const head = items.slice(0, MAX_SLICES - 1), tail = items.slice(MAX_SLICES - 1);
     const other = tail.reduce((s, [, v]) => s + v, 0) + (head.find(([k]) => k === store.other)?.[1] || 0);

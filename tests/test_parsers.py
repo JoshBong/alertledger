@@ -39,7 +39,7 @@ class ChaseTests(unittest.TestCase):
         p = parse("You received money with Zelle", CHASE,
                   "Zelle payment TYRONE THA sent you money Here are the details: Amount $16.00 Sent on Aug 29, 2026 Transaction number 30605351352 Memo burger")
         self.assertEqual((p.kind, p.amount, p.merchant, p.last4, p.date), ("zelle_in", 16.0, "Zelle from TYRONE THA", "0946", date(2026, 8, 29)))
-        self.assertEqual(p.txn_type, "transfer")
+        self.assertEqual(p.txn_type, "zelle")                                   # paybacks net against People, not hidden as income
 
     def test_noise_is_skipped_not_failed(self):
         for s in ("We've received your Chase Sapphire Preferred Visa payment", "Your latest statement is now available",
@@ -292,7 +292,7 @@ class VenmoTests(unittest.TestCase):
 
     def test_received_is_income(self):
         p = parse("Sam Walton paid you $16.00", self.V, "Sam Walton paid you $ 16. 00 Mc’ds See transaction ## Money credited to your Venmo account. ## Transaction details### Date Aug 05, 2026")
-        self.assertEqual((p.kind, p.amount, p.merchant, p.txn_type), ("zelle_in", 16.0, "Venmo from Sam Walton", "transfer"))
+        self.assertEqual((p.kind, p.amount, p.merchant, p.txn_type), ("zelle_in", 16.0, "Venmo from Sam Walton", "zelle"))
 
     def test_received_long_subject(self):
         p = parse("Jovian Wang paid $16.00 to your Venmo account. Leave it in Venmo or transfer it to your bank account.", self.V, "Jovian wang paid you $ 16. 00 Borger See transaction Date Aug 29, 2026")

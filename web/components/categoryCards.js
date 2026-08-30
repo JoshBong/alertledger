@@ -36,7 +36,7 @@ export function CategoryCards({ items, total, hasPrev, elapsed, onSelect, select
     return el('div', { class: 'card' + (it.key === selected ? ' on' : ''), style: { '--c': it.color }, role: 'button', tabindex: 0, 'aria-expanded': it.key === selected, onclick: () => onSelect?.(it.key) },
       el('div', { class: 'name' }, el('i', { class: 'dot' }), el('span', { class: 'grow' }, it.label ?? it.key),
         canBudget ? el('button', { class: 'budget-btn', title: it.budget ? 'edit budget' : 'set a budget', onclick: e => { e.stopPropagation(); onEdit?.(it.key); } }, it.budget ? '✎' : '+ budget') : null),
-      el('div', { class: 'value num' }, money0(it.value)),
+      el('div', { class: 'value num' + (it.value < 0 ? ' down' : '') }, it.value < 0 ? '+' + money0(-it.value) : money0(it.value)),
       editing === it.key
         ? BudgetEditor({ value: it.budget, suggest: it.suggest, onSave: v => onSaveBudget?.(it.key, v), onCancel: () => onEdit?.(null) })
         : it.budget
