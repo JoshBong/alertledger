@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 import config
-import db
+import ledger
 
 SKIP_TYPES = {"payment", "transfer"}  # own-account movements, not spend
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     p.add_argument("--category")
     p.add_argument("--grep")
     a = p.parse_args()
-    con = db.connect(str(config.DB))
+    con = ledger.connect(str(config.DB))
     rules = load_rules()
     {"recurring": lambda: recurring(con, rules),
      "breakdown": lambda: breakdown(con, rules, a.month, a.all),

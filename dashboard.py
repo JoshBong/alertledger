@@ -1,14 +1,11 @@
-"""Generate a self-contained dashboard.html from the ledger. No server, no deps; opens anywhere.
-   python3 dashboard.py            → ~/.alertledger/dashboard.html   (sync.py calls this after each run)"""
+"""Dashboard HTML, rendered from the ledger on each request (served by alertledger.py serve). Vanilla JS + SVG, no deps."""
 import json
 from datetime import date
 from html import escape
 
 import config
-import db
+import ledger
 import report
-
-OUT = config.HOME / "dashboard.html"
 
 
 def collect(con, rules):
@@ -58,6 +55,7 @@ footer{padding:12px 20px;color:var(--ink3);font-size:12px}
  <select id="month"></select>
  <span id="cards"></span>
  <input id="q" placeholder="search merchant…">
+ <button id="syncbtn" class="chip on" title="pull new alert emails now">⟳ Sync now</button><span id="synced" class="muted" style="font-size:12px">__LAST__</span>
 </header>
 <main>
  <section class="card"><div class="kpis" id="kpis"></div></section>
@@ -67,7 +65,7 @@ footer{padding:12px 20px;color:var(--ink3);font-size:12px}
  <section class="card c6"><h2>Statement checksum <span class="muted">(bank balance vs. our alerts, per cycle)</span></h2><div class="tbl"><table id="chk"></table></div></section>
  <section class="card"><h2>Transactions · <span id="tcount"></span></h2><div class="tbl"><table id="tx"></table></div></section>
 </main>
-<footer>generated __GEN__ · alerts are authorization-time (amounts may drift on posting) · edit categories in rules.toml</footer>
+<footer>alerts are authorization-time (amounts may drift on posting) · edit categories in rules.toml</footer>
 <script>
 const DATA=__DATA__;
 const SLOT=['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
@@ -123,6 +121,8 @@ function renderTx(){const rows=DATA.tx.filter(t=>vis(t)&&t.date.startsWith(state
   document.getElementById('tcount').textContent=rows.length+' rows';
   table('tx',[{t:'date'},{t:'card'},{t:'merchant'},{t:'category'},{t:'amount',n:1}],rows.map(t=>[t.date,el('span',{},el('i',{class:'chip',style:`padding:0;border:0;width:10px;height:10px;background:${cardColor[t.card]};display:inline-block;border-radius:2px;margin-right:6px`}),t.card),
     t.merchant,el('span',{class:t.ignore?'muted':''},t.ignore?'ignored':t.type==='transfer'?'income':t.cat),el('span',{class:t.amount>0?'ok':''},fmt(t.amount))]))}
+document.getElementById('syncbtn').onclick=async()=>{const b=document.getElementById('syncbtn');b.textContent='syncing…';b.disabled=true;
+  try{const r=await fetch('/api/sync',{method:'POST'});const j=await r.json();if(j.error)throw new Error(j.error);location.reload()}catch(e){b.textContent='sync failed: '+e.message;b.disabled=false}};
 render();
 </script></body></html>"""
 
@@ -160,15 +160,14 @@ def checksum_data(con):
     return sorted(out, key=lambda r: r["date"], reverse=True)
 
 
-def build(con=None):
-    con = con or db.connect(str(config.DB))
+def render(con) -> str:
     rules = report.load_rules()
     tx, stmts = collect(con, rules)
     data = {"tx": tx, "statements": stmts, "recurring": recurring_data(con, rules), "checksum": checksum_data(con)}
-    html = PAGE.replace("__DATA__", json.dumps(data, separators=(",", ":")).replace("</", "<\\/")).replace("__GEN__", escape(date.today().isoformat()))
-    OUT.write_text(html)
-    return OUT
+    last = ledger.get_meta(con, "last_sync")
+    return (PAGE.replace("__DATA__", json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
+                .replace("__LAST__", escape("last sync " + last.replace("T", " ")) if last else "never synced"))
 
 
 if __name__ == "__main__":
-    print(build())
+    print(render(ledger.connect(str(config.DB))))
