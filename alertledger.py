@@ -4,6 +4,8 @@
   python3 alertledger.py setup       interactive: Gmail login (tested), accounts, port
   python3 alertledger.py sync        pull mail now (--full = whole mailbox)
   python3 alertledger.py import <files…>   backfill from bank CSV exports or statement PDFs (account auto-detected; --account to force)
+  python3 alertledger.py backup [path]     zip of ledger + rules + config (no password) → move to another machine
+  python3 alertledger.py restore <zip>     replace this machine's ledger with a backup (keeps this machine's Gmail login)
   python3 alertledger.py serve       run forever: sync every N minutes + dashboard on :PORT
   python3 alertledger.py install     register `serve` as a system service (systemd / launchd) and start it
   python3 alertledger.py uninstall
@@ -151,6 +153,50 @@ def import_file(con, filename: str, data: bytes, account_id_: str | None = None)
     return counts
 
 
+# ---------------------------------------------------------------- backup / restore
+def make_backup() -> bytes:
+    """Zip of everything that is state: ledger.db, rules.toml, config.json minus the Gmail password."""
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        if config.DB.exists():
+            z.write(config.DB, "ledger.db")
+        if (HERE / "rules.toml").exists():
+            z.write(HERE / "rules.toml", "rules.toml")
+        if config.CONFIG.exists():
+            c = json.loads(config.CONFIG.read_text()); c.pop("gmail_app_password", None)
+            z.writestr("config.json", json.dumps(c, indent=2))
+        z.writestr("README.txt", "alertledger backup. Restore: drop this zip on the Data tab, or `./alertledger restore <zip>`. "
+                                 "The Gmail app password is not included; the restoring machine keeps its own.")
+    return buf.getvalue()
+
+
+def restore_backup(data: bytes, con=None) -> dict:
+    """Replace the ledger (and rules/config, keeping this machine's Gmail login) from a backup zip."""
+    import io, shutil, zipfile
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = set(z.namelist())
+        if "ledger.db" not in names:
+            raise ValueError("not an alertledger backup (no ledger.db inside)")
+        config.ensure_home()
+        if con is not None:
+            con.close()
+        if config.DB.exists():
+            shutil.copy(config.DB, config.DB.with_suffix(".db.bak"))            # one-step undo
+        config.DB.write_bytes(z.read("ledger.db"))
+        if "rules.toml" in names:
+            (HERE / "rules.toml").write_bytes(z.read("rules.toml"))
+        if "config.json" in names:
+            incoming = json.loads(z.read("config.json"))
+            cur = json.loads(config.CONFIG.read_text()) if config.CONFIG.exists() else {}
+            for k in ("gmail_user", "gmail_app_password", "port"):
+                if cur.get(k): incoming[k] = cur[k]                         # this machine's login + port win
+            config.save({**cur, **incoming})
+    new = ledger.connect(str(config.DB))
+    n = new.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+    return {"restored": True, "transactions": n, "con": new}
+
+
 # ---------------------------------------------------------------- serve
 class Handler(BaseHTTPRequestHandler):
     con = None
@@ -181,6 +227,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(f.read_bytes(), self.TYPES.get(f.suffix, "application/octet-stream"))
             else:
                 self._send(b"not found", "text/plain", 404)
+        elif path == "/api/backup":
+            from datetime import date as _d
+            body = make_backup()
+            self.send_response(200); self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="alertledger-backup-{_d.today().isoformat()}.zip"')
+            self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
         elif path == "/api/status":
             self._send(json.dumps({"last_sync": ledger.get_meta(self.con, "last_sync"), "counts": json.loads(ledger.get_meta(self.con, "last_counts", "{}"))}).encode(), "application/json")
         else:
@@ -195,7 +247,11 @@ class Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             with self.lock:
                 try:
-                    self._send(json.dumps(import_file(self.con, name, body, acct)).encode(), "application/json")
+                    if body[:2] == b"PK" or name.lower().endswith(".zip"):                 # a backup zip → restore
+                        r = restore_backup(body, self.con); Handler.con = self.con = r.pop("con")
+                        self._send(json.dumps(r).encode(), "application/json")
+                    else:
+                        self._send(json.dumps(import_file(self.con, name, body, acct)).encode(), "application/json")
                 except Exception as ex:
                     self._send(json.dumps({"error": str(ex)}).encode(), "application/json", 400)
         elif self.path == "/api/budget":
@@ -491,7 +547,7 @@ def uninstall():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update", "import"])
+    ap.add_argument("cmd", choices=["setup", "sync", "serve", "install", "uninstall", "start", "stop", "status", "doctor", "config", "update", "import", "backup", "restore"])
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--account", help="account id for import when it can't be detected")
     ap.add_argument("rest", nargs="*")
@@ -519,6 +575,13 @@ if __name__ == "__main__":
         show_config(a.rest)
     elif a.cmd == "update":
         update()
+    elif a.cmd == "backup":
+        out = Path(a.rest[0]) if a.rest else Path(f"alertledger-backup-{date.today().isoformat()}.zip")
+        out.write_bytes(make_backup()); print(out, f"({out.stat().st_size // 1024} KB)")
+    elif a.cmd == "restore":
+        if not a.rest:
+            raise SystemExit("usage: restore <backup.zip>")
+        r = restore_backup(Path(a.rest[0]).read_bytes()); r.pop("con"); print(r, "— restart the service if it is running")
     elif a.cmd == "import":
         if not a.rest:
             raise SystemExit("usage: import <file.csv|file.pdf> [...]   (add --account <id> if the account can't be detected)")

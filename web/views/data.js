@@ -28,9 +28,9 @@ export function DataView() {
         const q = '?name=' + encodeURIComponent(f.name) + (acctSel.value ? '&account=' + encodeURIComponent(acctSel.value) : '');
         const j = await api('/api/import' + q, { method: 'POST', body: await f.arrayBuffer() });
         const acct = d.accounts.find(a => a.id === j.account)?.name || j.account;
-        line.lastChild.textContent = j.skipped ? `skipped — ${j.reason}` : `${acct} · ${j.new} new · ${j.upgraded} alert rows → posted · ${j.dup} already there` + (j.statements ? ` · ${j.statements} statement` : '');
+        line.lastChild.textContent = j.restored ? `backup restored — ${j.transactions} transactions` : j.skipped ? `skipped — ${j.reason}` : `${acct} · ${j.new} new · ${j.upgraded} alert rows → posted · ${j.dup} already there` + (j.statements ? ` · ${j.statements} statement` : '');
         line.lastChild.className = j.skipped ? 'warn' : 'down';
-        if (!j.skipped && (j.new || j.upgraded || j.statements)) changed = true;
+        if (j.restored || (!j.skipped && (j.new || j.upgraded || j.statements))) changed = true;
       } catch (e) { line.lastChild.textContent = 'failed: ' + e.message; line.lastChild.className = 'up'; }
     }
     summary.textContent = changed ? 'done — reloading…' : 'done — nothing new';
@@ -43,6 +43,9 @@ export function DataView() {
       syncBtn)),
     panel('Accounts', el('div', { class: 'kv' }, ...d.accounts.flatMap(a =>
       [el('b', {}, a.name), el('span', {}, `${d.tx.filter(t => t.acct === a.id).length} transactions · id `, el('code', {}, a.id))]))),
+    panel('Backup / move to another machine',
+      el('div', { class: 'row' }, el('a', { class: 'btn', href: '/api/backup', download: '' }, '⬇ Download backup'),
+        el('span', { class: 'muted' }, 'ledger + budgets + rules + settings (not the Gmail password). To move: download here, drop the zip on the other machine\'s Data tab.'))),
     panel('Import statements / exports',
       el('p', { class: 'muted', style: { margin: '0 0 8px' } }, 'Backfills history and upgrades alert rows to the bank\'s posted amounts. The same file twice is ignored.'),
       DropZone({ onImport: onFiles }), el('div', { class: 'row', style: { marginTop: '8px' } }, el('span', { class: 'muted' }, 'if the account can\'t be detected:'), acctSel), results),

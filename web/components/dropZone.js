@@ -1,7 +1,7 @@
 import { el } from '../lib/dom.js';
 
 // Staged upload: tall drop area → "Choose files · N chosen" → Import / Clear. onImport(files) runs only on Import.
-export function DropZone({ accept = '.csv,.pdf', onImport, hint = 'Drop PDF or CSV files here' }) {
+export function DropZone({ accept = '.csv,.pdf,.zip', onImport, hint = 'Drop PDF, CSV or backup .zip files here' }) {
   let staged = [];
   const input = el('input', { type: 'file', accept, multiple: true, style: { display: 'none' }, onchange: e => { add([...e.target.files]); e.target.value = ''; } });
   const chosen = el('span', { class: 'dz-chosen' }, 'No files chosen');

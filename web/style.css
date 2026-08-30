@@ -156,3 +156,5 @@ td.n, th.n { text-align: right; }
 .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); margin: 10px 0 6px; }
 .stack .seg { background: var(--c); min-width: 2px; }
 .stack .seg + .seg { border-left: 1px solid var(--surface); }
+.btn { display: inline-block; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); text-decoration: none; background: var(--surface); }
+.btn:hover { border-color: var(--ink-3); }

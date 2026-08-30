@@ -31,6 +31,7 @@ statement-ready mail ──┘                                                  
 ./alertledger config gmail        re-enter the Gmail login (tested before saving)
 ./alertledger sync [--full]       pull mail now from the terminal (--full = whole mailbox)
 ./alertledger import <files…>     backfill from statement PDFs / CSV exports (account auto-detected)
+./alertledger backup | restore <zip>   move everything to another machine (Data tab has a download button too)
 ./alertledger serve               run in the foreground (what the service runs)
 ./alertledger install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
 ```
