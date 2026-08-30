@@ -290,6 +290,10 @@ class VenmoTests(unittest.TestCase):
         p = parse("Jovian Wang paid $16.00 to your Venmo account. Leave it in Venmo or transfer it to your bank account.", self.V, "Jovian wang paid you $ 16. 00 Borger See transaction Date Aug 29, 2026")
         self.assertEqual((p.kind, p.merchant), ("zelle_in", "Venmo from Jovian Wang"))
 
+    def test_received_you_received_form(self):
+        p = parse("You received $29.33 from Sean Walker", self.V, "You received $ 29. 33 from Sean Walker Date Mar 03, 2026")
+        self.assertEqual((p.kind, p.amount, p.merchant), ("zelle_in", 29.33, "Venmo from Sean Walker"))
+
     def test_noise(self):
         for s in ("Your Venmo Standard transfer has been initiated", "Reminder: Iain Kimpton requests $10.00", "Iain Kimpton requests $10.00",
                   "Jovian Wang wants to be friends with you on Venmo", "Your July 2026 transaction history", "Sign-in attempt from new device",

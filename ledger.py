@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS tx_date ON transactions(date);
 
 
 def connect(path: str) -> sqlite3.Connection:
-    con = sqlite3.connect(path, check_same_thread=False)
+    con = sqlite3.connect(path, check_same_thread=False, timeout=30)   # wait for a concurrent sync instead of "database is locked"
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
     return con

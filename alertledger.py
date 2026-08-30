@@ -46,6 +46,8 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
     since = None if full else date.today() - timedelta(days=14)
     counts = {"txn": 0, "statement": 0, "skip": 0, "unparsed": 0, "unknown_sender": 0}
     config.ensure_home()
+    if full and config.FAILURES.exists():
+        config.FAILURES.unlink()                                   # a full re-scan rebuilds the unparsed list from scratch
     with open(config.FAILURES, "a") as failures:
         for e in mail.fetch(cfg["gmail_user"], cfg["gmail_app_password"], since):
             bank = parsers.for_sender(e.sender)
