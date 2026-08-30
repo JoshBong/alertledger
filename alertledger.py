@@ -69,12 +69,14 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
 # ---------------------------------------------------------------- file import (csv / pdf)
 def pdf_to_text(data: bytes) -> str:
     import shutil, tempfile
-    if not shutil.which("pdftotext"):
+    # services (launchd/systemd) run with a minimal PATH; look in the usual install spots too
+    exe = shutil.which("pdftotext") or next((p for p in ("/opt/homebrew/bin/pdftotext", "/usr/local/bin/pdftotext", "/usr/bin/pdftotext") if os.path.exists(p)), None)
+    if not exe:
         raise ValueError("PDF import needs pdftotext (poppler): macOS `brew install poppler` · Debian/Pi `sudo apt install poppler-utils`")
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
         f.write(data); path = f.name
     try:
-        r = subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([exe, "-layout", path, "-"], capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise ValueError("pdftotext failed: " + r.stderr.strip()[:200])
         return r.stdout
@@ -91,7 +93,7 @@ def detect_account(con, filename: str, text: str, bank=None):
         for a in accts:
             if a["last_four"] == m.group(1):
                 return a["id"]
-    for pat in (r"\(\s*\.{3}\s*(\d{4})\s*\)", r"Account Number:\s*(?:X{4}\s*){3}(\d{4})", r"ending in\s*(\d{4})"):
+    for pat in (r"\(\s*\.{3}\s*(\d{4})\s*\)", r"Account Number:\s*(?:X{4}\s*){3}(\d{4})", r"Account (?:number|#):?\s*(?:\d{4}\s+){2}(\d{4})", r"ending in\s*(\d{4})"):
         for m in re.finditer(pat, text, re.I):
             for a in accts:
                 if a["last_four"] == m.group(1):

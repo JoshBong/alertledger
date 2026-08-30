@@ -193,3 +193,45 @@ INTEREST CHARGES
     def test_not_chase(self):
         with self.assertRaises(ValueError):
             list(parsers.for_sender(CHASE).pdf_rows("Bank of America statement", "x.pdf"))
+
+
+class BofaPdfTests(unittest.TestCase):
+    TEXT = """Bank of America
+for December 13, 2025 to January 13, 2026                                                         Account number: 4660 1263 1933
+Deposits and other additions
+12/15/25    Zelle payment from EDWARD KANG for "good"; Conf# 99byb4vku                                                                     44.92
+12/15/25    PURCHASE REFUND 1213 APPLE CASH SENT MONEY 1INFINITELOOPCA                                                                     22.00
+12/26/25    NEW YORK UNIVERS DES:DIRECT DEP ID:N14371619 INDN:HUANG, JOSHUA                           CO                                  627.84
+12/29/25    Online Banking transfer from CHK 8123 Confirmation# 4697226281                                                                250.00
+Total deposits and other additions                                                                                                $1,701.90
+Withdrawals and other subtractions
+12/22/25    CHECKCARD 1220 APPLE.COM/BILL 866-712-7753 CA 24692165354101262641204                                                         -53.11
+12/26/25    PURCHASE 1225 PAYPAL *AIRBNB HMEDKQZQ 402-935-7733 CA                                                                       -337.79
+Withdrawals and other subtractions - continued
+12/29/25       CHECKCARD 1226 a.NordVPN Tokyo                74188895360000801307097 RECURRING                                          -122.21
+12/30/25       BKOFAMERICA ATM 12/30 #000007876 WITHDRWL DELANCEY AND LUDLO NEW YORK                         NY                          -20.00
+12/16/25       Zelle payment to NEW CITY DE SALON INC. for "haircut + tip"; Conf# vvaoa0qxh                                              -25.00
+12/18/25       Mobile Banking payment to CRD 4139 Confirmation# ycc3adxlj                                                               -469.42
+Service fees
+12/29/25       CHECKCARD 1226 a.NordVPN Tokyo    74188895360000801307097                                                                  -3.67
+"""
+
+    def test_checking_estatement(self):
+        rows = list(parsers.for_sender(BOFA).pdf_rows(self.TEXT, "eStmt_2026-01-13.pdf"))
+        got = [(p.kind, p.amount, p.merchant) for p in rows]
+        self.assertEqual(got, [
+            ("zelle_in", 44.92, "Zelle from EDWARD KANG"),
+            ("refund", 22.0, "APPLE CASH SENT MONEY 1INFINITELOOPCA"),
+            ("deposit", 627.84, "NEW YORK UNIVERS"),
+            ("purchase", 53.11, "APPLE.COM/BILL 866-712-7753 CA"),
+            ("purchase", 337.79, "PAYPAL *AIRBNB HMEDKQZQ 402-935-7733 CA"),
+            ("purchase", 122.21, "a.NordVPN Tokyo"),
+            ("purchase", 20.0, "ATM withdrawal"),
+            ("zelle_out", 25.0, "Zelle to NEW CITY DE SALON INC."),
+            ("purchase", 3.67, "Fee: a.NordVPN Tokyo"),
+        ])                                                     # own-account transfer + card payment skipped
+        self.assertEqual(rows[0].date, date(2025, 12, 15))
+
+    def test_card_estatement_not_yet(self):
+        with self.assertRaises(ValueError):
+            list(parsers.for_sender(BOFA).pdf_rows("Bank of America\nfor July 1, 2026 to July 27, 2026\nPurchases and Adjustments", "eStmt.pdf"))

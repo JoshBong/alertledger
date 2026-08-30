@@ -1,5 +1,8 @@
 """Bank of America. Alerts come from onlinebanking@ealerts.bankofamerica.com.
 Purchase bodies: `... Visa Signature ending in 1234 Amount: $54.98 Date: April 18, 2026 Where: FLIX This may have ...`"""
+import re
+from datetime import date
+
 from . import BankParser, Email, Parsed
 
 
@@ -81,3 +84,57 @@ class BofA(BankParser):
             else:
                 kind, merchant = "purchase", desc
             yield Parsed(kind, abs(amt), merchant, None, self.date(r[di], None), posted=True)
+
+    # BofA checking/savings eStatement PDFs (pdftotext -layout): "for December 13, 2025 to January 13, 2026",
+    # sections "Deposits and other additions" / "Withdrawals and other subtractions" (+ "- continued") / "Service fees",
+    # rows "MM/DD/YY  DESC  ±AMOUNT". Card eStatements use a different layout (not yet supported).
+    PDF_ROW = re.compile(r"^\s*(\d{2})/(\d{2})/(\d{2})\s+(.+?)\s{2,}(-?[\d,]+\.\d{2})\s*$")
+    OWN_ACCOUNT = re.compile(r"Online Banking transfer|Mobile Banking payment to CRD|payment to CRD \d{4}|transfer (?:to|from) (?:CHK|SAV|CRD)", re.I)
+
+    def pdf_rows(self, text, filename=""):
+        if not re.search(r"for [A-Z][a-z]+ \d{1,2}, \d{4} to [A-Z][a-z]+ \d{1,2}, \d{4}", text) or "Bank of America" not in text:
+            raise ValueError("not a Bank of America eStatement")
+        if "Withdrawals and other subtractions" not in text:
+            raise ValueError("Bank of America card eStatements aren't supported yet (checking/savings are)")
+        section = None
+        for line in text.splitlines():
+            u = line.strip()
+            if u.startswith("Deposits and other additions"): section = "in"; continue
+            if u.startswith("Withdrawals and other subtractions"): section = "out"; continue
+            if u.startswith("Service fees"): section = "fee"; continue
+            if u.startswith(("Total ", "Daily ledger balances", "Account summary")) and not u.startswith("Total deposits") : pass
+            r = self.PDF_ROW.match(line)
+            if not r or not section:
+                continue
+            desc, amt = re.sub(r"\s+", " ", r.group(4)).strip(), float(r.group(5).replace(",", ""))
+            d = date(2000 + int(r.group(3)), int(r.group(1)), int(r.group(2)))
+            up = desc.upper()
+            if self.OWN_ACCOUNT.search(desc):
+                continue
+            if section == "in":
+                if up.startswith("ZELLE PAYMENT FROM"):
+                    who = re.split(r" for \"| Conf#", desc[len("Zelle payment from "):], 1)[0]
+                    yield Parsed("zelle_in", abs(amt), "Zelle from " + who.strip(), None, d, posted=True)
+                elif "REFUND" in up or "CHECKCARD" in up or "PURCHASE" in up:
+                    yield Parsed("refund", abs(amt), self._merchant(desc), None, d, posted=True)
+                else:
+                    yield Parsed("deposit", abs(amt), self._merchant(desc), None, d, posted=True)
+                continue
+            if up.startswith("ZELLE PAYMENT TO"):
+                who = re.split(r" for \"| Conf#", desc[len("Zelle payment to "):], 1)[0]
+                yield Parsed("zelle_out", abs(amt), "Zelle to " + who.strip(), None, d, posted=True)
+            elif "ATM" in up and "WITHDRWL" in up:
+                yield Parsed("purchase", abs(amt), "ATM withdrawal", None, d, posted=True)
+            elif section == "fee":
+                yield Parsed("purchase", abs(amt), "Fee: " + self._merchant(desc), None, d, posted=True)
+            else:
+                yield Parsed("purchase", abs(amt), self._merchant(desc), None, d, posted=True)
+
+    @staticmethod
+    def _merchant(desc: str) -> str:
+        m = re.sub(r"^(?:CHECKCARD|PURCHASE|PMNT SENT|PURCHASE REFUND)\s+\d{4}\s+", "", desc, flags=re.I)   # strip "CHECKCARD 1220 "
+        m = re.sub(r"\s+\d{15,}.*$", "", m)                                                              # trailing reference numbers
+        m = re.sub(r"\s+RECURRING$", "", m, flags=re.I)
+        m = re.sub(r"\s+DES:.*$", "", m)                                                                   # ACH "DES:… ID:… INDN:…"
+        m = re.sub(r"\s+(?:MOBILE|\*MOBILE)\s+[A-Z]{2}$", "", m)
+        return m.strip()[:80]
