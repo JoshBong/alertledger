@@ -31,7 +31,6 @@ export function SpendingView({ rerender, goto }) {
     label: k === store.other && byCat ? `${k} · ${rows.filter(t => t.cat === k).length} uncategorized` : k,
     budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat && k !== store.other,
   }));
-  const budgetTotal = byCat ? Object.values(store.budgets).reduce((a, b) => a + b, 0) : 0;
   const elapsed = store.elapsed(month);
   const saveBudget = async (cat, amount) => {
     try { store.data.budgets = await api('/api/budget', { method: 'POST', body: JSON.stringify({ category: cat, amount }) }); }
@@ -56,7 +55,7 @@ export function SpendingView({ rerender, goto }) {
     el('div', { class: 'row', style: { justifyContent: 'center', marginBottom: '6px' } },
       Segmented({ options: [{ value: 'cat', label: 'by category' }, { value: 'acct', label: 'by account' }], value: mode, onChange: v => { store.state.mode = v; rerender(); } })),
     Donut({ items: shaped.filter(i => i.value > 0), total, title: money0(total), onSelect: toggle,
-      subtitle: budgetTotal ? `${spentLine}\nof ${money0(budgetTotal)} budgeted · ${Math.round(100 * total / budgetTotal)}%` : spentLine }),
+      subtitle: spentLine }),
     CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded,
       editing: store.state.editing, onEdit: k => { store.state.editing = k; rerender(); }, onSaveBudget: saveBudget }),
     detail,

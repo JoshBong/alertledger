@@ -17,8 +17,10 @@ export function DataView() {
 
   const results = el('div', { class: 'import-results' });
   const acctSel = el('select', { 'aria-label': 'account (only if it cannot be detected)' }, option('detect account from file', ''), ...d.accounts.map(a => option(a.name, a.id)));
-  let reloadTimer = null;
   const onFiles = async files => {
+    let changed = false;
+    const summary = el('div', { class: 'muted' }, `importing ${files.length} file${files.length > 1 ? 's' : ''}…`);
+    results.prepend(summary);
     for (const f of files) {
       const line = el('div', { class: 'import-line' }, el('b', {}, f.name), ' ', el('span', { class: 'muted' }, 'importing…'));
       results.prepend(line);
@@ -28,9 +30,11 @@ export function DataView() {
         const acct = d.accounts.find(a => a.id === j.account)?.name || j.account;
         line.lastChild.textContent = j.skipped ? `skipped — ${j.reason}` : `${acct} · ${j.new} new · ${j.upgraded} alert rows → posted · ${j.dup} already there` + (j.statements ? ` · ${j.statements} statement` : '');
         line.lastChild.className = j.skipped ? 'warn' : 'down';
-        if (!j.skipped && (j.new || j.upgraded)) { clearTimeout(reloadTimer); reloadTimer = setTimeout(() => location.reload(), 1500); }
+        if (!j.skipped && (j.new || j.upgraded || j.statements)) changed = true;
       } catch (e) { line.lastChild.textContent = 'failed: ' + e.message; line.lastChild.className = 'up'; }
     }
+    summary.textContent = changed ? 'done — reloading…' : 'done — nothing new';
+    if (changed) setTimeout(() => location.reload(), 1200);
   };
   return el('div', {},
     panel('Sync', el('div', { class: 'row' },
