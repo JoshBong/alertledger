@@ -1,23 +1,27 @@
 # alertledger
 
-Your bank already emails you every purchase. alertledger turns those alerts into a ledger and a dashboard — no aggregator,
-no bank credentials, no CSV exports. Runs on a Raspberry Pi (or anything with Python 3.11+), view it from your phone.
+**100% free, email-based personal finance.** Your bank already emails you every purchase — alertledger reads those alerts
+from your Gmail and turns them into a ledger, a spending dashboard, and budgets. No aggregator, no Plaid, no bank
+credentials, no subscription, no data leaving your machine.
 
-Built after Teller shut down (July 2026) and left individuals with no free bank API. Alert emails are the one feed banks
-give you for free.
+- **Free forever, by construction.** The data feed is your bank's own alert emails, which banks send for free and won't
+  stop sending. Nothing to renew, no API that can shut down (this was built the week Teller did).
+- **Your data stays yours.** One process on a box you own (a Raspberry Pi, an old laptop, a Mac), SQLite on disk, plain
+  HTML. View it from your phone over your LAN or Tailscale.
+- **Zero dependencies.** Python 3.11+ standard library only. `git clone` and run.
+- **Backfill history** by dropping bank statement PDFs / CSV exports; imports dedupe and replace the alert-time rows.
+- **Sources today:** Chase, Bank of America, Venmo. Adding a bank is a ~40-line subclass →
+  [docs/parsers.md](docs/parsers.md).
 
 ```
-bank purchase alert ──► Gmail ──► alertledger (one process: hourly IMAP pull + web UI) ──► http://pi:8080
-statement-ready mail ──┘                                                                   └─ ~/.alertledger/ledger.db
+bank purchase alert ──► Gmail ──► alertledger (hourly IMAP pull + web UI) ──► http://your-box:8080
+statement PDF / CSV ──► drop on the Data tab ─┘                              └─ ~/.alertledger/ledger.db
 ```
 
-- **Install:** see below, full detail in [docs/setup.md](docs/setup.md)
-- **Sources:** Chase, Bank of America, Venmo. Adding one is a ~40-line subclass → [docs/parsers.md](docs/parsers.md)
-- **Dashboard:** phone-first, four tabs — **Spending** (one month, donut by category or account, tap to drill), **Transactions**
-  (filter/search), **Trends** (12 months, recurring charges, category month-over-month), **Data** (sync, accounts, CSV import, checksum).
-- **Backfill:** drag in Chase statement PDFs or bank CSV exports; posted rows replace the alert-time ones, the same file twice is ignored.
-- **Budgets:** per category, with a "where you should be today" tick and month-end pace.
-- **Zero dependencies.** Python stdlib only; SQLite on disk. (PDF import shells out to `pdftotext` if installed.)
+**Dashboard:** Spending (one month, donut by category or account, tap to drill), Budget (per-category + total, with a
+"where you should be today" tick and month-end pace), Transactions (filter/search), Trends (12 months, recurring charges),
+Data (sync, imports, backup). Zelle/Venmo paybacks net against what you sent; transfers between your own accounts and
+card payments count for nothing.
 
 ## Setup
 
