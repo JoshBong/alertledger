@@ -135,9 +135,18 @@ td.n, th.n { text-align: right; }
 .tooltip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; display: none; z-index: 9; white-space: nowrap; }
 
 /* ---- import drop zone / budget overall ---------------------------------- */
-.dropzone { border: 2px dashed var(--line); border-radius: var(--radius); padding: 22px 16px; text-align: center; cursor: pointer; color: var(--ink-2); }
-.dropzone.over, .dropzone:hover { border-color: var(--ink-3); background: var(--bg); }
-.dropzone .dz-glyph { font-size: 22px; margin-bottom: 4px; }
+.uploader { max-width: 520px; margin: 0 auto; display: grid; gap: 12px; justify-items: center; }
+.dropzone { width: 100%; min-height: 180px; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--ink-3); border-radius: 6px; cursor: pointer; color: var(--ink); font-size: 18px; }
+.dropzone.over, .dropzone:hover { border-color: var(--ink); background: var(--bg); }
+.dz-choose { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.dz-choose button { border: 0; border-right: 1px solid var(--line); border-radius: 0; padding: 8px 16px; }
+.dz-choose .dz-chosen { padding: 8px 16px; color: var(--ink-3); }
+.dz-list { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; gap: 4px; font-size: 13px; }
+.dz-list li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; background: var(--bg); border-radius: 6px; }
+.dz-list .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-x { padding: 0 6px; border: 0; background: transparent; color: var(--ink-3); }
+.dz-actions { display: flex; gap: 10px; }
+.dz-actions button { min-width: 120px; padding: 9px 18px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; font-size: 13px; font-weight: 600; }
 .import-results { margin-top: 10px; display: grid; gap: 4px; font-size: 13px; }
 .overall .big { font-size: 26px; font-weight: 700; }
 .overall .pct { font-size: 26px; font-weight: 700; color: var(--ink-2); }

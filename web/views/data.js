@@ -45,7 +45,7 @@ export function DataView() {
       [el('b', {}, a.name), el('span', {}, `${d.tx.filter(t => t.acct === a.id).length} transactions · id `, el('code', {}, a.id))]))),
     panel('Import statements / exports',
       el('p', { class: 'muted', style: { margin: '0 0 8px' } }, 'Backfills history and upgrades alert rows to the bank\'s posted amounts. The same file twice is ignored.'),
-      DropZone({ onFiles }), el('div', { class: 'row', style: { marginTop: '8px' } }, el('span', { class: 'muted' }, 'if the account can\'t be detected:'), acctSel), results),
+      DropZone({ onImport: onFiles }), el('div', { class: 'row', style: { marginTop: '8px' } }, el('span', { class: 'muted' }, 'if the account can\'t be detected:'), acctSel), results),
     panel(el('span', {}, 'Statement checksum ', el('span', { class: 'muted' }, 'bank balance vs. what we have, per cycle')),
       Table({ columns: [{ title: 'card' }, { title: 'statement' }, { title: 'bank', numeric: true }, { title: 'ours', numeric: true }, { title: 'gap', numeric: true }],
         rows: d.checksum.slice(0, 12).map(r => [r.card, r.date, money(r.bank), money(r.ours), el('span', { class: Math.abs(r.gap) < 1 ? 'down' : 'up' }, money(r.gap))]),
