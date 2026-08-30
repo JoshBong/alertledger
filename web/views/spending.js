@@ -49,7 +49,7 @@ export function SpendingView({ rerender, goto }) {
       el('button', { class: 'muted', style: { padding: '2px 8px' }, onclick: () => toggle(expanded), 'aria-label': 'close' }, '✕')),
     TxList({ rows: detailRows, colorFor: c => store.categoryColor(c), limit: 60 })) : null;
   const isCurrent = month === ym(today());
-  const spentLine = isCurrent ? 'spent so far · as of ' + new Date(today() + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'spent in ' + monthLabel(month);
+  const spentLine = 'spent in ' + monthLabel(month);
   return el('div', {},
     MonthNav({ months: store.months, month, onChange: m => { store.state.month = m; rerender(); } }),
     el('div', { class: 'row', style: { justifyContent: 'center', marginBottom: '6px' } },
