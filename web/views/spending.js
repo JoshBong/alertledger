@@ -24,11 +24,11 @@ export function SpendingView({ rerender, goto }) {
     items = [...head.filter(([k]) => k !== store.other), [store.other, other]];
   }
   const byCat = mode === 'cat';
-  if (byCat) for (const c of Object.keys(store.budgets)) if (!items.some(([k]) => k === c)) items.push([c, 0]);   // budgeted but unspent: still show
+  if (byCat) for (const c of Object.keys(store.budgets)) if (store.categories.includes(c) && !items.some(([k]) => k === c)) items.push([c, 0]);   // budgeted but unspent: still show
   const shaped = items.map(([k, v]) => ({
     key: k, value: v, color: store.colorFor(mode, k), delta: v - (old[k] || 0),
     count: rows.filter(t => key(t) === k).length,
-    budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat, label: k === store.other && byCat ? 'Everything else' : k,
+    budget: byCat ? store.budgets[k] : undefined, suggest: byCat ? store.avg3(k, month) : 0, budgetable: byCat && k !== store.other,
   }));
   const elapsed = store.elapsed(month);
   const saveBudget = async (cat, amount) => {
