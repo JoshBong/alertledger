@@ -24,6 +24,7 @@ import getpass
 import json
 import os
 import plistlib
+import queue
 import re
 import subprocess
 import sys
@@ -42,11 +43,25 @@ HERE = Path(__file__).resolve().parent
 SERVICE = "alertledger"
 
 
+# ---------------------------------------------------------------- events (SSE)
+_subscribers: list[queue.Queue] = []
+_sub_lock = threading.Lock()
+
+
+def publish(event: dict):
+    """Push an event to every open /api/events stream. No-op when nothing is listening (CLI sync)."""
+    with _sub_lock:
+        subs = list(_subscribers)
+    for q in subs:
+        q.put(json.dumps(event, separators=(",", ":")))
+
+
 # ---------------------------------------------------------------- sync
 def sync(con, cfg: dict, full: bool = False) -> dict:
     parsers.configure(cfg.get("default_checking", {}))
     since = None if full else date.today() - timedelta(days=14)
     counts = {"txn": 0, "statement": 0, "skip": 0, "unparsed": 0, "unknown_sender": 0}
+    new_txns = 0
     config.ensure_home()
     if full and config.FAILURES.exists():
         config.FAILURES.unlink()                                   # a full re-scan rebuilds the unparsed list from scratch
@@ -63,13 +78,19 @@ def sync(con, cfg: dict, full: bool = False) -> dict:
             elif p.kind == "skip":
                 counts["skip"] += 1
             else:
-                counts[ledger.record(con, bank.name, p, e.subject)] += 1
+                k = ledger.record(con, bank.name, p, e.subject)
+                if k == "txn_new":
+                    k = "txn"
+                    new_txns += 1
+                counts[k] += 1
                 if (counts["txn"] + counts["statement"]) % 50 == 0:
                     con.commit()                                       # short transactions: a full sync must not lock the DB for minutes
     ledger.tidy(con)
     ledger.set_meta(con, "last_sync", datetime.now().isoformat(timespec="seconds"))
     ledger.set_meta(con, "last_counts", json.dumps(counts))
     con.commit()
+    if new_txns:
+        publish({"new_txns": new_txns})                            # only genuinely new rows wake open dashboards
     return counts
 
 
@@ -237,8 +258,35 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
         elif path == "/api/status":
             self._send(json.dumps({"last_sync": ledger.get_meta(self.con, "last_sync"), "counts": json.loads(ledger.get_meta(self.con, "last_counts", "{}"))}).encode(), "application/json")
+        elif path == "/api/events":
+            self._events()
         else:
             self._send(b"not found", "text/plain", 404)
+
+    def _events(self):
+        """Server-sent events: one long-lived response per open dashboard (each on its own ThreadingHTTPServer thread)."""
+        q = queue.Queue()
+        with _sub_lock:
+            _subscribers.append(q)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(b"retry: 5000\n\n")
+            self.wfile.flush()
+            while True:
+                try:
+                    self.wfile.write(f"data: {q.get(timeout=25)}\n\n".encode())
+                except queue.Empty:
+                    self.wfile.write(b": ping\n\n")                # keepalive; also how we notice a closed tab
+                self.wfile.flush()
+        except OSError:
+            pass                                                   # client went away
+        finally:
+            with _sub_lock:
+                if q in _subscribers:
+                    _subscribers.remove(q)
 
     def do_POST(self):
         if self.path.startswith("/api/import"):

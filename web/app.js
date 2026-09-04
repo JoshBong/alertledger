@@ -30,3 +30,6 @@ function goto(tab) {
 
 store.state.tab = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'spending';
 store.load().then(() => render()).catch(e => { root.innerHTML = `<div class="empty">could not load data: ${e.message}</div>`; });
+
+// server pushes an event when a sync records genuinely new purchases; reload without a manual refresh
+new EventSource('/api/events').onmessage = () => store.load().then(() => render());

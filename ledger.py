@@ -78,7 +78,8 @@ def upsert_statement(con, account_id_: str, statement_date: str, balance: float,
 
 
 def record(con, bank: str, p: Parsed, subject: str) -> str:
-    """Write a Parsed to the ledger. Returns 'txn' | 'statement'."""
+    """Write a Parsed to the ledger. Returns 'txn_new' | 'txn' | 'statement'. 'txn_new' only for a row that wasn't
+    there before — sync re-reads 14 days of mail, so most calls are re-seen alerts and must not look new."""
     aid = ensure_account(con, bank, p.last4)
     if p.kind == "statement":
         upsert_statement(con, aid, p.date.isoformat(), p.balance, p.due.isoformat() if p.due else None, authoritative=False)
@@ -90,12 +91,13 @@ def record(con, bank: str, p: Parsed, subject: str) -> str:
         return "txn"                                   # the bank's posted row is already here (CSV/PDF); the alert adds nothing
     key = f"{bank}|{p.last4}|{d}|{amt:.2f}|{p.merchant.lower()}"
     tid = "mail_" + hashlib.sha1(key.encode()).hexdigest()[:20]
+    new = con.execute("SELECT 1 FROM transactions WHERE id=?", (tid,)).fetchone() is None
     today = date.today().isoformat()
     con.execute("""INSERT INTO transactions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen""",
                 (tid, aid, d, p.merchant, amt, "posted" if p.posted else "pending", p.txn_type, None, p.merchant,
                  json.dumps({"subject": subject, "kind": p.kind}), today, today))
-    return "txn"
+    return "txn_new" if new else "txn"
 
 
 def set_meta(con, key: str, value: str):
