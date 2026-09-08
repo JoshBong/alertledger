@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""alertledger — bank alert emails → ledger → dashboard. One process: hourly sync + web UI.
+"""budgetmail — bank alert emails → ledger → dashboard. One process: hourly sync + web UI.
 
-  python3 alertledger.py setup       interactive: Gmail login (tested), accounts, port
-  python3 alertledger.py sync        pull mail now (--full = whole mailbox)
-  python3 alertledger.py import <files…>   backfill from bank CSV exports or statement PDFs (account auto-detected; --account to force)
-  python3 alertledger.py backup [path]     zip of ledger + rules + config (no password) → move to another machine
-  python3 alertledger.py restore <zip>     replace this machine's ledger with a backup (keeps this machine's Gmail login)
-  python3 alertledger.py serve       run forever: sync every N minutes + dashboard on :PORT
-  python3 alertledger.py install     register `serve` as a system service (systemd / launchd) and start it
-  python3 alertledger.py uninstall
-  python3 alertledger.py stop | start  pause / resume the installed service (registration stays)
-  python3 alertledger.py status      service state, last sync, ledger totals, URL
-  python3 alertledger.py doctor      check python, config, Gmail login, database, service, port
-  python3 alertledger.py config      show config (password masked)
-  python3 alertledger.py config set port 8090 | sync_interval_min 30 | default_checking.Chase 1234
-  python3 alertledger.py config gmail        re-enter Gmail login (tested)
-  python3 alertledger.py update      git pull, run tests, restart the service
+  python3 budgetmail.py setup       interactive: Gmail login (tested), accounts, port
+  python3 budgetmail.py sync        pull mail now (--full = whole mailbox)
+  python3 budgetmail.py import <files…>   backfill from bank CSV exports or statement PDFs (account auto-detected; --account to force)
+  python3 budgetmail.py backup [path]     zip of ledger + rules + config (no password) → move to another machine
+  python3 budgetmail.py restore <zip>     replace this machine's ledger with a backup (keeps this machine's Gmail login)
+  python3 budgetmail.py serve       run forever: sync every N minutes + dashboard on :PORT
+  python3 budgetmail.py install     register `serve` as a system service (systemd / launchd) and start it
+  python3 budgetmail.py uninstall
+  python3 budgetmail.py stop | start  pause / resume the installed service (registration stays)
+  python3 budgetmail.py status      service state, last sync, ledger totals, URL
+  python3 budgetmail.py doctor      check python, config, Gmail login, database, service, port
+  python3 budgetmail.py config      show config (password masked)
+  python3 budgetmail.py config set port 8090 | sync_interval_min 30 | default_checking.Chase 1234
+  python3 budgetmail.py config gmail        re-enter Gmail login (tested)
+  python3 budgetmail.py update      git pull, run tests, restart the service
 
-`./alertledger <cmd>` is the same thing.
+`./budgetmail <cmd>` is the same thing.
 """
 import argparse
 import getpass
@@ -40,7 +40,7 @@ import mail
 import parsers
 
 HERE = Path(__file__).resolve().parent
-SERVICE = "alertledger"
+SERVICE = "budgetmail"
 
 
 # ---------------------------------------------------------------- events (SSE)
@@ -189,7 +189,7 @@ def make_backup() -> bytes:
         if config.CONFIG.exists():
             c = json.loads(config.CONFIG.read_text()); c.pop("gmail_app_password", None)
             z.writestr("config.json", json.dumps(c, indent=2))
-        z.writestr("README.txt", "alertledger backup. Restore: drop this zip on the Data tab, or `./alertledger restore <zip>`. "
+        z.writestr("README.txt", "budgetmail backup. Restore: drop this zip on the Data tab, or `./budgetmail restore <zip>`. "
                                  "The Gmail app password is not included; the restoring machine keeps its own.")
     return buf.getvalue()
 
@@ -200,7 +200,7 @@ def restore_backup(data: bytes, con=None) -> dict:
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = set(z.namelist())
         if "ledger.db" not in names:
-            raise ValueError("not an alertledger backup (no ledger.db inside)")
+            raise ValueError("not a budgetmail backup (no ledger.db inside)")
         config.ensure_home()
         if con is not None:
             con.close()
@@ -254,7 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             from datetime import date as _d
             body = make_backup()
             self.send_response(200); self.send_header("Content-Type", "application/zip")
-            self.send_header("Content-Disposition", f'attachment; filename="alertledger-backup-{_d.today().isoformat()}.zip"')
+            self.send_header("Content-Disposition", f'attachment; filename="budgetmail-backup-{_d.today().isoformat()}.zip"')
             self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
         elif path == "/api/status":
             self._send(json.dumps({"last_sync": ledger.get_meta(self.con, "last_sync"), "counts": json.loads(ledger.get_meta(self.con, "last_counts", "{}"))}).encode(), "application/json")
@@ -340,7 +340,7 @@ def serve(cfg: dict):
 
     threading.Thread(target=loop, daemon=True).start()
     port = int(cfg.get("port", 8080))
-    print(f"alertledger on http://0.0.0.0:{port}  (sync every {interval // 60} min)", flush=True)
+    print(f"budgetmail on http://0.0.0.0:{port}  (sync every {interval // 60} min)", flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 
@@ -349,7 +349,7 @@ def setup():
     cur = {}
     if config.CONFIG.exists():
         cur = json.loads(config.CONFIG.read_text())
-    print("alertledger setup — Gmail is read over IMAP with an app password (myaccount.google.com/apppasswords)\n")
+    print("budgetmail setup — Gmail is read over IMAP with an app password (myaccount.google.com/apppasswords)\n")
     user = input(f"Gmail address [{cur.get('gmail_user', '')}]: ").strip() or cur.get("gmail_user", "")
     pw = getpass.getpass("App password (hidden, 16 chars): ").strip() or cur.get("gmail_app_password", "")
     print("testing login…", end=" ", flush=True)
@@ -369,7 +369,7 @@ def setup():
                  "sync_interval_min": int(cur.get("sync_interval_min", 60))})
     if not (HERE / "rules.toml").exists():
         (HERE / "rules.toml").write_text((HERE / "rules.example.toml").read_text())
-    print(f"\nsaved {config.CONFIG}. Next: python3 alertledger.py sync --full   (first pull, a few minutes)")
+    print(f"\nsaved {config.CONFIG}. Next: python3 budgetmail.py sync --full   (first pull, a few minutes)")
 
 
 # ---------------------------------------------------------------- status / doctor / config / update
@@ -407,14 +407,14 @@ def stop():
         if not _port_open(config.load()["port"]):
             break
         time.sleep(0.5)
-    print("  ■ alertledger stopped — won't start at boot until ./alertledger start")
+    print("  ■ budgetmail stopped — won't start at boot until ./budgetmail start")
 
 
 def start():
     if sys.platform == "darwin":
         plist = Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist"
         if not plist.exists():
-            raise SystemExit("not installed — run ./alertledger install")
+            raise SystemExit("not installed — run ./budgetmail install")
         r = subprocess.run(["launchctl", "load", str(plist)], capture_output=True, text=True)
         subprocess.run(["launchctl", "kickstart", f"gui/{os.getuid()}/io.{SERVICE}"], capture_output=True)  # load alone may not launch
     else:
@@ -445,7 +445,7 @@ def _announce(port: int, wait: int = 15):
             ip = _lan_ip()
             ts = ip if ip and ip.startswith("100.") and 64 <= int(ip.split(".")[1]) <= 127 else None   # Tailscale CGNAT range
             print(f"""
-  ✓ alertledger is up
+  ✓ budgetmail is up
     this machine   http://localhost:{port}
     on your LAN    http://{host}:{port}""" + (f"\n                   http://{ip}:{port}" if ip and not ts else "")
                   + (f"\n    via Tailscale  http://{ts}:{port}  (also http://{host.split('.')[0]}:{port} on the tailnet)" if ts else f"\n    via Tailscale  install it → http://<tailscale-name>:{port}") + f"""
@@ -490,13 +490,13 @@ def doctor():
     good &= ok(sys.version_info >= (3, 11), f"python {sys.version.split()[0]} (need ≥ 3.11)")
     good &= ok(config.CONFIG.exists(), f"config {config.CONFIG}")
     if not config.CONFIG.exists():
-        print("    run: ./alertledger setup"); return
+        print("    run: ./budgetmail setup"); return
     cfg = config.load()
     good &= ok((config.CONFIG.stat().st_mode & 0o077) == 0, "config permissions 600")
     try:
         mail.login(cfg["gmail_user"], cfg["gmail_app_password"]).logout(); good &= ok(True, f"gmail login as {cfg['gmail_user']}")
     except Exception as ex:
-        good &= ok(False, f"gmail login: {ex}  → ./alertledger config gmail")
+        good &= ok(False, f"gmail login: {ex}  → ./budgetmail config gmail")
     try:
         ledger.connect(str(config.DB)).execute("SELECT 1"); good &= ok(True, f"database {config.DB}")
     except Exception as ex:
@@ -531,7 +531,7 @@ def show_config(argv):
     if _restart_service():
         print("service restarted")
     else:
-        print("service not running — start with ./alertledger install (or serve)")
+        print("service not running — start with ./budgetmail install (or serve)")
 
 
 def update():
@@ -544,12 +544,12 @@ def update():
     print("  tests: " + ("ok" if t.returncode == 0 else "FAILED\n" + t.stderr))
     if t.returncode != 0:
         raise SystemExit("not restarting a broken build")
-    print("  service: " + ("restarted" if _restart_service() else "not installed — run ./alertledger install"))
+    print("  service: " + ("restarted" if _restart_service() else "not installed — run ./budgetmail install"))
 
 
 # ---------------------------------------------------------------- install
 def install():
-    py, script = sys.executable, str(HERE / "alertledger.py")
+    py, script = sys.executable, str(HERE / "budgetmail.py")
     if sys.platform == "darwin":
         plist = Path.home() / "Library/LaunchAgents" / f"io.{SERVICE}.plist"
         plist.write_bytes(plistlib.dumps({"Label": f"io.{SERVICE}", "ProgramArguments": [py, script, "serve"], "RunAtLoad": True, "KeepAlive": True,
@@ -560,7 +560,7 @@ def install():
         print(f"launchd: {plist} (starts at login, restarts if it dies)")
     else:
         unit = f"""[Unit]
-Description=alertledger
+Description=budgetmail
 After=network-online.target
 
 [Service]
@@ -568,7 +568,7 @@ ExecStart={py} {script} serve
 Restart=always
 RestartSec=10
 User={os.environ.get('SUDO_USER') or getpass.getuser()}
-Environment=ALERTLEDGER_HOME={config.HOME}
+Environment=BUDGETMAIL_HOME={config.HOME}
 
 [Install]
 WantedBy=multi-user.target
@@ -627,7 +627,7 @@ if __name__ == "__main__":
     elif a.cmd == "update":
         update()
     elif a.cmd == "backup":
-        out = Path(a.rest[0]) if a.rest else Path(f"alertledger-backup-{date.today().isoformat()}.zip")
+        out = Path(a.rest[0]) if a.rest else Path(f"budgetmail-backup-{date.today().isoformat()}.zip")
         out.write_bytes(make_backup()); print(out, f"({out.stat().st_size // 1024} KB)")
     elif a.cmd == "restore":
         if not a.rest:

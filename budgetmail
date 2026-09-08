@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# thin launcher: ./budgetmail <cmd> [...]
+exec python3 "$(dirname "$0")/budgetmail.py" "$@"

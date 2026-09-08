@@ -1,6 +1,6 @@
-# alertledger
+# budgetmail
 
-**100% free, email-based personal finance.** Your bank already emails you every purchase — alertledger reads those alerts
+**100% free, email-based personal finance.** Your bank already emails you every purchase — budgetmail reads those alerts
 from your Gmail and turns them into a ledger, a spending dashboard, and budgets. No aggregator, no Plaid, no bank
 credentials, no subscription, no data leaving your machine.
 
@@ -14,8 +14,8 @@ credentials, no subscription, no data leaving your machine.
   [docs/parsers.md](docs/parsers.md). PRs welcome.
 
 ```
-bank purchase alert ──► Gmail ──► alertledger (hourly IMAP pull + web UI) ──► http://your-box:8080
-statement PDF / CSV ──► drop on the Data tab ─┘                              └─ ~/.alertledger/ledger.db
+bank purchase alert ──► Gmail ──► budgetmail (hourly IMAP pull + web UI) ──► http://your-box:8080
+statement PDF / CSV ──► drop on the Data tab ─┘                              └─ ~/.budgetmail/ledger.db
 ```
 
 **Dashboard:** Spending (one month, donut by category or account, tap to drill), Budget (per-category + total, with a
@@ -33,7 +33,7 @@ just open the page.
 # 2. a Gmail app password:  myaccount.google.com/apppasswords
 # 3.
 sudo apt install -y git python3 poppler-utils        # Debian / Raspberry Pi OS   (macOS: brew install poppler)
-git clone https://github.com/JoshBong/alertledger && cd alertledger && ./install.sh
+git clone https://github.com/JoshBong/budgetmail && cd budgetmail && ./install.sh
 ```
 The wizard asks for the Gmail address + app password (login is tested before anything is saved), which checking accounts
 Zelle mails belong to, and a port. It pulls your mailbox once, registers a service (systemd on Linux, launchd on macOS),
@@ -49,18 +49,18 @@ Drop that zip on another machine's Data tab to restore. Run one server at a time
 ## Commands
 ```
 ./install.sh                      first install: setup wizard → first pull → register the service
-./alertledger status              service state · last sync · ledger totals · URL
-./alertledger stop | start        pause / resume the service (stays installed)
-./alertledger update              git pull → run tests → restart
-./alertledger doctor              check python · config · Gmail login · database · service · port
-./alertledger config              show config (password masked)
-./alertledger config set port 8090            also: sync_interval_min 30 · default_checking.Chase 1234
-./alertledger config gmail        re-enter the Gmail login (tested before saving)
-./alertledger sync [--full]       pull mail now from the terminal (--full = whole mailbox)
-./alertledger import <files…>     backfill from statement PDFs / CSV exports (account auto-detected)
-./alertledger backup | restore <zip>   move everything to another machine (Data tab has a download button too)
-./alertledger serve               run in the foreground (what the service runs)
-./alertledger install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
+./budgetmail status              service state · last sync · ledger totals · URL
+./budgetmail stop | start        pause / resume the service (stays installed)
+./budgetmail update              git pull → run tests → restart
+./budgetmail doctor              check python · config · Gmail login · database · service · port
+./budgetmail config              show config (password masked)
+./budgetmail config set port 8090            also: sync_interval_min 30 · default_checking.Chase 1234
+./budgetmail config gmail        re-enter the Gmail login (tested before saving)
+./budgetmail sync [--full]       pull mail now from the terminal (--full = whole mailbox)
+./budgetmail import <files…>     backfill from statement PDFs / CSV exports (account auto-detected)
+./budgetmail backup | restore <zip>   move everything to another machine (Data tab has a download button too)
+./budgetmail serve               run in the foreground (what the service runs)
+./budgetmail install | uninstall register / remove the service (systemd on Linux, launchd on macOS)
 ```
 
 Caveats: alerts fire at authorization, so amounts can drift when they post (tips) — the checksum shows the drift. No history

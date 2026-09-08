@@ -14,8 +14,8 @@ Implement what the bank offers. Unimplemented hooks raise `ValueError`, and the 
 
 ## 0. Get real samples first
 Never write a parser from memory — banks' wording is weird and changes. Turn the alerts on, let a few arrive, then
-`./alertledger sync`. Anything from an unknown sender is counted as `unknown_sender`; anything from a registered bank the
-parser can't read lands in `~/.alertledger/parse_failures.jsonl` **with the flattened body**. That file is your spec.
+`./budgetmail sync`. Anything from an unknown sender is counted as `unknown_sender`; anything from a registered bank the
+parser can't read lands in `~/.budgetmail/parse_failures.jsonl` **with the flattened body**. That file is your spec.
 For CSV/PDF, download one of each account type; run `pdftotext -layout file.pdf -` to see the text the parser gets.
 
 ## 1. The class
@@ -124,7 +124,7 @@ The app runs `pdftotext -layout` and hands you the text. Rows are aligned column
 Things every statement parser has to handle: rows without a year (derive from the period), page-break section
 headers (`… (CONTINUED)`), FX continuation lines, fees/interest sections, the bank's own payments (skip), and the
 closing balance (`statement` row → the checksum on the Data tab). Account detection: the filename (`…-2637-.pdf`), or
-`Account number: XXXX XXXX 1234` in the text — see `detect_account()` in `alertledger.py`; add a regex there if your
+`Account number: XXXX XXXX 1234` in the text — see `detect_account()` in `budgetmail.py`; add a regex there if your
 bank prints it differently.
 
 ## 5. Transfers between your own accounts

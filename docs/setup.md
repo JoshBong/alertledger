@@ -14,28 +14,28 @@ Turn on **email** alerts for every purchase, lowest threshold the bank allows. T
 Emails from other bank senders (marketing, promos) are ignored by sender address. Bank-side `VENMO` rows (funding pulls, cash-outs) are treated as transfers so Venmo spend is counted once, from Venmo's own emails.
 
 ## 2. Google app password
-alertledger reads your Gmail over IMAP. Google requires an *app password* for that (your normal password won't work):
-myaccount.google.com/apppasswords → name it `alertledger` → copy the 16 characters. Needs 2-Step Verification on. Revoke it there any time.
+budgetmail reads your Gmail over IMAP. Google requires an *app password* for that (your normal password won't work):
+myaccount.google.com/apppasswords → name it `budgetmail` → copy the 16 characters. Needs 2-Step Verification on. Revoke it there any time.
 
 ## 3. Install
 ```
-git clone https://github.com/JoshBong/alertledger && cd alertledger && ./install.sh
+git clone https://github.com/JoshBong/budgetmail && cd budgetmail && ./install.sh
 ```
 The wizard asks for the Gmail address + app password and **tests the login before saving anything**, then which checking account Zelle mails belong to (last 4), then a port. It pulls the whole mailbox once (a few minutes — BofA alert history often goes back years), and registers a service:
 
-- Raspberry Pi / Linux: systemd `alertledger` (starts on boot, restarts on failure). `journalctl -u alertledger -f` for logs.
-- macOS: launchd `io.alertledger` (starts at login).
+- Raspberry Pi / Linux: systemd `budgetmail` (starts on boot, restarts on failure). `journalctl -u budgetmail -f` for logs.
+- macOS: launchd `io.budgetmail` (starts at login).
 
 Then open `http://<host>:8080`. The service syncs every 60 minutes; the **Sync now** button pulls immediately.
 
-Config lives in `~/.alertledger/config.json` (mode 600). `sync_interval_min` and `port` are editable there; restart the service after.
+Config lives in `~/.budgetmail/config.json` (mode 600). `sync_interval_min` and `port` are editable there; restart the service after.
 
 ## 4. Viewing from anywhere
 Don't expose the port to the internet. Install [Tailscale](https://tailscale.com) on the box and your phone/laptop — same URL works from any network, encrypted, no port-forwarding, free for personal use.
 
 ## Backfill from statements / exports
 Alerts only exist from the day you turned them on. For history, drop the bank's files on the Data tab (or
-`./alertledger import file1.pdf file2.csv …`):
+`./budgetmail import file1.pdf file2.csv …`):
 
 | Bank | File | Account detection |
 |---|---|---|
@@ -62,16 +62,16 @@ The fixed set is in `categories.py`: Food & Dining · Groceries · Shopping · T
 
 ## Day-to-day commands
 ```
-./alertledger stop / start                pause or resume the service (keeps it installed)
-./alertledger status                      service state, last sync, ledger totals, URL
-./alertledger doctor                      python · config · Gmail login · database · service · port
-./alertledger config                      show config (password masked)
-./alertledger config set port 8090        also: sync_interval_min 30 · default_checking.Chase 1234   (restarts the service)
-./alertledger config gmail                re-enter the Gmail login (tested before saving)
-./alertledger update                      git pull → run tests → restart the service
-./alertledger sync [--full]               pull now from the terminal
+./budgetmail stop / start                pause or resume the service (keeps it installed)
+./budgetmail status                      service state, last sync, ledger totals, URL
+./budgetmail doctor                      python · config · Gmail login · database · service · port
+./budgetmail config                      show config (password masked)
+./budgetmail config set port 8090        also: sync_interval_min 30 · default_checking.Chase 1234   (restarts the service)
+./budgetmail config gmail                re-enter the Gmail login (tested before saving)
+./budgetmail update                      git pull → run tests → restart the service
+./budgetmail sync [--full]               pull now from the terminal
 ```
 `./install.sh` is only for first install; `update` is the everyday one.
 
 ## Uninstall
-`python3 alertledger.py uninstall` (sudo on Linux), delete `~/.alertledger`, revoke the app password.
+`python3 budgetmail.py uninstall` (sudo on Linux), delete `~/.budgetmail`, revoke the app password.

@@ -2,7 +2,11 @@ import json
 import os
 from pathlib import Path
 
-HOME = Path(os.environ.get("ALERTLEDGER_HOME", Path.home() / ".alertledger"))
+DEFAULT_HOME = Path.home() / ".budgetmail"
+LEGACY_HOME = Path.home() / ".alertledger"          # pre-rename; moved once, on the first run after the rename
+HOME = Path(os.environ.get("BUDGETMAIL_HOME", DEFAULT_HOME))
+if HOME == DEFAULT_HOME and not HOME.exists() and LEGACY_HOME.is_dir():
+    LEGACY_HOME.rename(HOME)
 CONFIG = HOME / "config.json"
 DB = HOME / "ledger.db"
 FAILURES = HOME / "parse_failures.jsonl"
@@ -17,11 +21,11 @@ def ensure_home():
 
 def load() -> dict:
     if not CONFIG.exists():
-        raise SystemExit(f"no config at {CONFIG} — run: python3 alertledger.py setup")
+        raise SystemExit(f"no config at {CONFIG} — run: python3 budgetmail.py setup")
     c = {**DEFAULTS, **json.loads(CONFIG.read_text())}
     for k in ("gmail_user", "gmail_app_password"):
         if not c.get(k):
-            raise SystemExit(f"{CONFIG}: missing {k} — run: python3 alertledger.py setup")
+            raise SystemExit(f"{CONFIG}: missing {k} — run: python3 budgetmail.py setup")
     return c
 
 

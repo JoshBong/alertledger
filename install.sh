@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# alertledger installer: python3 check → setup wizard → first sync → service. Idempotent; rerun after `git pull`.
+# budgetmail installer: python3 check → setup wizard → first sync → service. Idempotent; rerun after `git pull`.
 set -euo pipefail
 cd "$(dirname "$0")"
 PY=$(command -v python3 || true)
@@ -7,14 +7,14 @@ PY=$(command -v python3 || true)
 "$PY" - <<'PYCHK' || { echo "python3 >= 3.11 required (found $($PY --version))"; exit 1; }
 import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)
 PYCHK
-if [ ! -f "${ALERTLEDGER_HOME:-$HOME/.alertledger}/config.json" ]; then
-  "$PY" alertledger.py setup
-  echo; echo "first pull of your whole mailbox (a few minutes)…"; "$PY" alertledger.py sync --full
+if [ ! -f "${BUDGETMAIL_HOME:-$HOME/.budgetmail}/config.json" ]; then
+  "$PY" budgetmail.py setup
+  echo; echo "first pull of your whole mailbox (a few minutes)…"; "$PY" budgetmail.py sync --full
 fi
 echo
 if [ "$(uname)" = "Darwin" ]; then
-  "$PY" alertledger.py install
+  "$PY" budgetmail.py install
 else
   echo "registering the systemd service (needs sudo once)…"
-  sudo -E "$PY" alertledger.py install
+  sudo -E "$PY" budgetmail.py install
 fi

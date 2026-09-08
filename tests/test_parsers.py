@@ -247,7 +247,7 @@ Service fees
 class TidyTests(unittest.TestCase):
     def setUp(self):
         import ledger, os
-        os.environ["ALERTLEDGER_HOME"] = "/tmp/al-test"
+        os.environ["BUDGETMAIL_HOME"] = "/tmp/al-test"
         self.ledger = ledger
         self.con = ledger.connect(":memory:")
         for bank, l4 in (("Chase", "0946"), ("Bank of America", "1933"), ("Bank of America", "4139")):
