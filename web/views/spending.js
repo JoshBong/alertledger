@@ -6,11 +6,13 @@ import { Segmented } from '../components/segmented.js';
 import { Donut } from '../components/donut.js';
 import { CategoryCards } from '../components/categoryCards.js';
 import { TxList } from '../components/txList.js';
+import { recatOptions } from '../lib/recat.js';
 
 const MAX_SLICES = 8;
 
 export function SpendingView({ rerender, goto }) {
   const { month, mode } = store.state;
+  const drag = recatOptions(rerender);
   const rows = store.inMonth(month);
   const prev = store.prevMonth(month);
   const key = store.keyFor(mode);
@@ -47,7 +49,7 @@ export function SpendingView({ rerender, goto }) {
       el('span', { class: 'grow' }),
       el('a', { href: '#transactions', class: 'muted', onclick: e => { e.preventDefault(); store.state.filter = { q: '', month, account: mode === 'cat' ? '' : expanded, category: mode === 'cat' ? expanded : '' }; goto('transactions'); } }, 'open in Transactions ›'),
       el('button', { class: 'muted', style: { padding: '2px 8px' }, onclick: () => toggle(expanded), 'aria-label': 'close' }, '✕')),
-    TxList({ rows: detailRows, colorFor: c => store.categoryColor(c), limit: 60 })) : null;
+    TxList({ rows: detailRows, colorFor: c => store.categoryColor(c), limit: 60, drag })) : null;
   const isCurrent = month === ym(today());
   const spentLine = 'spent in ' + monthLabel(month);
   return el('div', {},
@@ -57,7 +59,7 @@ export function SpendingView({ rerender, goto }) {
     Donut({ items: shaped.filter(i => i.value > 0), total, onSelect: toggle, selected: expanded,
       title: net < 0 ? '+' + money0(-net) : money0(net), titleClass: net < 0 ? 'down' : '',
       subtitle: monthLabel(month) }),
-    CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded,
+    CategoryCards({ items: shaped, total, hasPrev: !!prev, elapsed, onSelect: toggle, selected: expanded, droppable: byCat,
       editing: store.state.editing, onEdit: k => { store.state.editing = k; rerender(); }, onSaveBudget: saveBudget }),
     detail,
   );

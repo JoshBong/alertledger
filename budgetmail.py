@@ -177,6 +177,42 @@ def import_file(con, filename: str, data: bytes, account_id_: str | None = None,
 
 
 # ---------------------------------------------------------------- backup / restore
+def recategorize(con, tx_id: str, category: str | None, scope: str) -> dict:
+    """Move a transaction into another category, by hand, from the dashboard.
+      scope 'one'       → this transaction only (an override row).
+      scope 'merchant'  → every transaction from the same merchant, past and future (a merchant rule).
+                          Per-row overrides on that merchant are cleared — the rule subsumes them.
+    Returns {changed, merchant, revert}; `revert` is the body to POST to /api/category/revert to undo it."""
+    import report
+    row = con.execute("SELECT * FROM transactions WHERE id=?", (tx_id,)).fetchone()
+    if row is None:
+        raise KeyError("no such transaction")
+    key = report.merchant_key(row)
+    if scope == "one":
+        prev = ledger.overrides(con).get(tx_id)
+        ledger.set_override(con, tx_id, category)
+        return {"changed": 1, "merchant": key, "revert": {"scope": "one", "id": tx_id, "category": prev}}
+    ids = [r["id"] for r in con.execute("SELECT * FROM transactions") if report.merchant_key(r) == key]
+    prev_over = {i: c for i, c in ledger.overrides(con).items() if i in ids}
+    prev_cat = ledger.merchant_cats(con).get(key)
+    for i in prev_over:
+        ledger.set_override(con, i, None)
+    ledger.set_merchant_cat(con, key, category)
+    return {"changed": len(ids), "merchant": key,
+            "revert": {"scope": "merchant", "id": tx_id, "merchant": key, "category": prev_cat, "overrides": prev_over}}
+
+
+def revert_recategorize(con, r: dict):
+    """Undo one recategorize() using the `revert` blob it returned."""
+    if r.get("scope") == "one":
+        ledger.set_override(con, r["id"], r.get("category"))
+        return {"changed": 1}
+    ledger.set_merchant_cat(con, r["merchant"], r.get("category"))
+    for i, c in (r.get("overrides") or {}).items():
+        ledger.set_override(con, i, c)
+    return {"changed": 1}
+
+
 def make_backup() -> bytes:
     """Zip of everything that is state: ledger.db, rules.toml, config.json minus the Gmail password."""
     import io, zipfile
@@ -312,6 +348,23 @@ class Handler(BaseHTTPRequestHandler):
             with self.lock:
                 ledger.set_budget(self.con, body["category"], body.get("amount"))
             self._send(json.dumps(ledger.budgets(self.con)).encode(), "application/json")
+        elif self.path == "/api/category":
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            import categories
+            if body.get("category") not in categories.CATEGORIES:
+                self._send(json.dumps({"error": "unknown category"}).encode(), "application/json", 400); return
+            if body.get("scope") not in ("one", "merchant"):
+                self._send(json.dumps({"error": "scope must be one|merchant"}).encode(), "application/json", 400); return
+            with self.lock:
+                try:
+                    r = recategorize(self.con, body.get("id"), body["category"], body["scope"])
+                except KeyError as ex:
+                    self._send(json.dumps({"error": ex.args[0]}).encode(), "application/json", 404); return
+            self._send(json.dumps(r).encode(), "application/json")
+        elif self.path == "/api/category/revert":
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            with self.lock:
+                self._send(json.dumps(revert_recategorize(self.con, body)).encode(), "application/json")
         elif self.path == "/api/sync":
             with self.lock:
                 try:

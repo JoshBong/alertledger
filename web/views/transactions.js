@@ -2,6 +2,7 @@ import { el, option } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { money0, monthLabel, ym } from '../lib/format.js';
 import { TxList } from '../components/txList.js';
+import { recatOptions } from '../lib/recat.js';
 
 export function TransactionsView({ rerender }) {
   const f = store.state.filter;
@@ -25,6 +26,6 @@ export function TransactionsView({ rerender }) {
       select('account', store.data.accounts.map(a => [a.name, a.name]), 'all accounts'),
       select('category', store.categories.map(c => [c, c]), 'all categories')),
     el('div', { class: 'muted', style: { marginBottom: '8px' } }, `${rows.length} transactions · ${money0(out)} out` + (inn ? ` · ${money0(inn)} in` : '')),
-    TxList({ rows, colorFor: c => store.categoryColor(c) }),
+    TxList({ rows, colorFor: c => store.categoryColor(c), drag: recatOptions(rerender) }),
   );
 }

@@ -158,3 +158,49 @@ td.n, th.n { text-align: right; }
 .stack .seg + .seg { border-left: 1px solid var(--surface); }
 .btn { display: inline-block; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); text-decoration: none; background: var(--surface); }
 .btn:hover { border-color: var(--ink-3); }
+
+/* ---- drag a transaction into another category --------------------------- */
+.tx.grab { cursor: grab; touch-action: pan-y; -webkit-touch-callout: none; }
+.tx.grab:hover { background: var(--bg); }
+.tx.holding { background: var(--bg); transition: background .2s; }
+.tx.dragging { opacity: .35; }
+.tx .pin { color: var(--ink-3); font-size: 11px; }
+body.drag-active { user-select: none; -webkit-user-select: none; touch-action: none; cursor: grabbing; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; background: var(--surface); border: 1px solid var(--ink-3);
+  border-radius: 10px; box-shadow: 0 10px 26px rgba(0,0,0,.3); opacity: .95; padding: 8px 12px; }
+.drag-ghost .meta, .drag-ghost .day { display: none; }
+[data-drop-cat].over { outline: 2px solid var(--c, var(--ink)); outline-offset: 1px; }
+.card[data-drop-cat].over { background: color-mix(in srgb, var(--c, var(--gray)) 12%, var(--surface)); }
+
+/* the rail: category drop targets, up while you drag, on every tab */
+.rail { position: fixed; left: 0; right: 0; bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 12;
+  display: flex; gap: 8px; align-items: center; overflow-x: auto; scrollbar-width: none;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line);
+  transform: translateY(120%); transition: transform .16s ease-out; }
+.rail::-webkit-scrollbar { display: none; }
+.rail.up { transform: none; }
+.rail-label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; flex: 0 0 auto; }
+.rail .chip { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 9px 13px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--bg); white-space: nowrap; }
+.rail .chip.current { opacity: .35; }
+.rail .chip.over { background: color-mix(in srgb, var(--c, var(--gray)) 16%, var(--surface)); border-color: var(--c, var(--ink)); }
+
+/* "just this one / all of them" */
+.backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.34); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.panel.ask { margin: 0; max-width: 340px; width: 100%; }
+.panel.ask h3 { margin: 0 0 2px; font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ask-actions button { width: 100%; }
+
+.toast { position: fixed; left: 12px; right: 12px; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 12;
+  display: flex; align-items: center; gap: 12px; max-width: 460px; margin: 0 auto;
+  background: var(--ink); color: var(--bg); border-radius: 10px; padding: 11px 14px; font-size: 13px;
+  transform: translateY(160%); transition: transform .18s ease-out; }
+.toast.up { transform: none; }
+.toast span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast button { background: transparent; border: 0; color: var(--bg); text-decoration: underline; padding: 0; font-size: 13px; }
+
+@media (min-width: 700px) {
+  .rail { bottom: 0; padding-bottom: 10px; justify-content: center; }
+  .toast { bottom: 16px; }
+}

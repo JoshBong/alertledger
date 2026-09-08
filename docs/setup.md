@@ -57,8 +57,23 @@ the donut shows total spent vs total budgeted. No rollover; budgets are the same
 Stored in the database (`budgets` table).
 
 ## Categories
-The fixed set is in `categories.py`: Food & Dining · Groceries · Shopping · Travel · Transport · Bills & Subscriptions · Health · People · Other.
+The fixed set is in `categories.py`: Food & Dining · Shopping · Travel · Transport · Bills & Subscriptions · People · Other.
 `rules.toml` (copied from `rules.example.toml` on setup) maps merchant regexes into them; `ignore = true` drops own-account payments from spend. The Spending tab shows how many transactions fell into Other, so you know when to add a rule.
+
+**Fixing one by hand:** drag a transaction onto the right category — a card on Spending, or a chip on the rail that slides
+up while you drag (on a phone, long-press the row first, then drag). If the merchant has more than one charge it asks
+whether you mean just that one or all of them; "all" is remembered and applies to future charges too. The toast that
+follows has an Undo.
+
+Resolution order, first match wins:
+
+1. a single transaction you dragged   → `overrides` table
+2. a merchant you taught it           → `merchant_cats` table
+3. `rules.toml`
+4. the bank's own category, mapped through `categories.normalize`
+
+1 and 2 live in the database (so they are in your backup, not in git), and a category you set by hand always counts as
+spend — even if a rule or the transfer heuristic had written that row off.
 
 ## Day-to-day commands
 ```

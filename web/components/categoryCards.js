@@ -28,12 +28,13 @@ function BudgetEditor({ value, suggest, onSave, onCancel }) {
     el('button', { onclick: onCancel }, '✕'));
 }
 
-// CategoryCards({ items:[{key,label,value,color,count,delta,budget,suggest}], total, hasPrev, elapsed, onSelect, selected, editing, onEdit, onSaveBudget })
-export function CategoryCards({ items, total, hasPrev, elapsed, onSelect, selected, editing, onEdit, onSaveBudget }) {
+// CategoryCards({ items:[{key,label,value,color,count,delta,budget,suggest}], total, hasPrev, elapsed, onSelect, selected, editing, onEdit, onSaveBudget, droppable })
+export function CategoryCards({ items, total, hasPrev, elapsed, onSelect, selected, editing, onEdit, onSaveBudget, droppable }) {
   if (!items.length) return el('div', { class: 'empty' }, 'no spending recorded this month');
   return el('div', { class: 'cards' }, ...items.map(it => {
     const canBudget = it.budgetable !== false;
-    return el('div', { class: 'card' + (it.key === selected ? ' on' : ''), style: { '--c': it.color }, role: 'button', tabindex: 0, 'aria-expanded': it.key === selected, onclick: () => onSelect?.(it.key) },
+    return el('div', { class: 'card' + (it.key === selected ? ' on' : ''), style: { '--c': it.color }, role: 'button', tabindex: 0,
+      'aria-expanded': it.key === selected, 'data-drop-cat': droppable ? it.key : null, onclick: () => onSelect?.(it.key) },
       el('div', { class: 'name' }, el('i', { class: 'dot' }), el('span', { class: 'grow' }, it.label ?? it.key),
         canBudget ? el('button', { class: 'budget-btn', title: it.budget ? 'edit budget' : 'set a budget', onclick: e => { e.stopPropagation(); onEdit?.(it.key); } }, it.budget ? '✎' : '+ budget') : null),
       el('div', { class: 'value num' + (it.value < 0 ? ' down' : '') }, it.value < 0 ? '+' + money0(-it.value) : money0(it.value)),

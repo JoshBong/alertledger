@@ -18,7 +18,7 @@ export const store = {
     const r = await fetch('/api/data');
     if (!r.ok) throw new Error('data ' + r.status);
     this.data = await r.json();
-    this.spend = this.data.tx.filter(t => !t.ignore && t.type !== 'transfer');
+    this.spend = this.data.tx.filter(t => !t.ignore && (t.pinned || t.type !== 'transfer'));   // pinned = you dragged it here; it counts
     const seen = new Set(this.spend.map(t => ym(t.date)));
     seen.add(ym(today()));
     const sorted = [...seen].sort();

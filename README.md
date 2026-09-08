@@ -23,6 +23,11 @@ statement PDF / CSV ──► drop on the Data tab ─┘                       
 Data (sync, imports, backup). Zelle/Venmo paybacks net against what you sent; transfers between your own accounts and
 card payments count for nothing.
 
+**Something in the wrong category?** Drag the transaction onto the category it belongs in — the cards on Spending, or the
+rail of categories that slides up while you drag (long-press to start on a phone). It asks whether that's just this one
+charge or every charge from that merchant; "every" is remembered, so future ones land right too. Undo is in the toast.
+Rules you set this way outrank `rules.toml`, and they ride along in your backup.
+
 ## Setup
 
 Runs anywhere with Python 3.11+ — a Raspberry Pi, an old laptop, a Mac, a $4 VPS. One machine runs it; phones and laptops

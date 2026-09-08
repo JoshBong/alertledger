@@ -12,22 +12,22 @@ def short(inst):
     return ledger.short(inst)
 
 
-def collect(con, rules):
+def collect(con, cl):
     tx = []
     for r in con.execute("SELECT t.*, a.institution, a.last_four FROM transactions t JOIN accounts a ON a.id=t.account_id ORDER BY t.date DESC, t.id"):
-        cat, ignore = report.classify(r, rules)
+        cat, ignore, pinned = cl.of(r)
         tx.append({"id": r["id"], "date": r["date"], "acct": r["account_id"], "card": ledger.account_label(r["institution"], r["last_four"]),
                    "merchant": r["description"], "amount": round(r["amount"], 2), "cat": cat, "type": r["type"],
-                   "ignore": ignore, "status": r["status"]})
+                   "ignore": ignore, "status": r["status"], "mkey": report.merchant_key(r), "pinned": pinned})
     accounts = [{"id": r["id"], "name": r["name"]} for r in con.execute("SELECT id, name FROM accounts ORDER BY name")]
     return tx, accounts
 
 
-def recurring(con, rules):
+def recurring(con, cl):
     from collections import defaultdict
     from datetime import datetime
     groups = defaultdict(list)
-    for row, cat in report.spend_rows(con, rules):
+    for row, cat in report.spend_rows(con, cl):
         groups[report.merchant_key(row)].append((datetime.fromisoformat(row["date"]).date(), -row["amount"], ledger.account_label(row["institution"], row["last_four"]), cat))
     out = []
     for k, items in groups.items():
@@ -67,9 +67,9 @@ def failures():
 
 def data(con) -> dict:
     """Everything the UI needs, as JSON. The UI (web/) does all aggregation client-side."""
-    rules = report.load_rules()
-    tx, accounts = collect(con, rules)
-    return {"tx": tx, "accounts": accounts, "categories": categories.CATEGORIES, "recurring": recurring(con, rules), "checksum": checksum(con),
+    cl = report.Classifier(con)
+    tx, accounts = collect(con, cl)
+    return {"tx": tx, "accounts": accounts, "categories": categories.CATEGORIES, "recurring": recurring(con, cl), "checksum": checksum(con),
             "budgets": ledger.budgets(con), "failures": failures(), "last_sync": ledger.get_meta(con, "last_sync"), "last_counts": json.loads(ledger.get_meta(con, "last_counts", "{}"))}
 
 

@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS statements (id TEXT PRIMARY KEY, account_id TEXT NOT 
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS budgets (category TEXT PRIMARY KEY, amount REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS imports (sha TEXT PRIMARY KEY, filename TEXT, account_id TEXT, imported_at TEXT, rows INTEGER);
+CREATE TABLE IF NOT EXISTS overrides (tx_id TEXT PRIMARY KEY, category TEXT NOT NULL, created_at TEXT);
+CREATE TABLE IF NOT EXISTS merchant_cats (merchant TEXT PRIMARY KEY, category TEXT NOT NULL, created_at TEXT);
 CREATE INDEX IF NOT EXISTS tx_date ON transactions(date);
 """
 
@@ -118,6 +120,34 @@ def set_budget(con, category: str, amount: float | None):
         con.execute("DELETE FROM budgets WHERE category=?", (category,))
     else:
         con.execute("INSERT INTO budgets VALUES (?,?) ON CONFLICT(category) DO UPDATE SET amount=excluded.amount", (category, float(amount)))
+    con.commit()
+
+
+def overrides(con) -> dict:
+    """tx id → category, set by dragging one transaction into another category. Outranks everything."""
+    return {r["tx_id"]: r["category"] for r in con.execute("SELECT tx_id, category FROM overrides")}
+
+
+def merchant_cats(con) -> dict:
+    """report.merchant_key → category, set by dragging with "all from this merchant". Outranks rules.toml."""
+    return {r["merchant"]: r["category"] for r in con.execute("SELECT merchant, category FROM merchant_cats")}
+
+
+def set_override(con, tx_id: str, category: str | None):
+    if category is None:
+        con.execute("DELETE FROM overrides WHERE tx_id=?", (tx_id,))
+    else:
+        con.execute("INSERT INTO overrides VALUES (?,?,?) ON CONFLICT(tx_id) DO UPDATE SET category=excluded.category",
+                    (tx_id, category, date.today().isoformat()))
+    con.commit()
+
+
+def set_merchant_cat(con, merchant: str, category: str | None):
+    if category is None:
+        con.execute("DELETE FROM merchant_cats WHERE merchant=?", (merchant,))
+    else:
+        con.execute("INSERT INTO merchant_cats VALUES (?,?,?) ON CONFLICT(merchant) DO UPDATE SET category=excluded.category",
+                    (merchant, category, date.today().isoformat()))
     con.commit()
 
 
